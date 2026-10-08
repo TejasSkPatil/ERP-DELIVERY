@@ -1,0 +1,87 @@
+import { DeliveryRecord, DailyStat, StorageStats } from '../types/delivery';
+
+export const INITIAL_STORAGE_STATS: StorageStats = {
+  retentionDays: 32,
+  oldestRecordDate: '06 Sep 2026',
+  newestRecordDate: '08 Oct 2026',
+  totalRecords: 24,
+  eligibleForDeletionCount: 0,
+};
+
+export const INITIAL_DAILY_STATS: DailyStat[] = [
+  { date: '08 Oct 2026', totalDeliveries: 24, uploadedSlips: 24, isToday: true },
+  { date: '07 Oct 2026', totalDeliveries: 21, uploadedSlips: 21 },
+  { date: '06 Oct 2026', totalDeliveries: 18, uploadedSlips: 18 },
+  { date: '05 Oct 2026', totalDeliveries: 26, uploadedSlips: 26 },
+  { date: '04 Oct 2026', totalDeliveries: 22, uploadedSlips: 22 },
+  { date: '03 Oct 2026', totalDeliveries: 19, uploadedSlips: 19 },
+];
+
+export const INITIAL_DELIVERIES: DeliveryRecord[] = [
+  {
+    id: 'del-1',
+    receiptNo: '7',
+    deliveryPerson: 'Rahul Sharma (DP-01)',
+    customer: 'Amit Verma (Flat 402, Skyline Apt)',
+    deliveryDate: '08 Oct 2026',
+    uploadedTime: '13:45:20 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-01.jpg',
+    gridFSFileId: 'mock-gridfs-id-01',
+  },
+  {
+    id: 'del-2',
+    receiptNo: '14',
+    deliveryPerson: 'Vikram Singh (DP-03)',
+    customer: 'Priya Nair (Order #1045, Palm Grove)',
+    deliveryDate: '08 Oct 2026',
+    uploadedTime: '14:10:05 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-02.jpg',
+    gridFSFileId: 'mock-gridfs-id-02',
+  },
+  {
+    id: 'del-3',
+    receiptNo: '19',
+    deliveryPerson: 'Rahul Sharma (DP-01)',
+    customer: 'Karan Mehra (Order #1049, Regency)',
+    deliveryDate: '08 Oct 2026',
+    uploadedTime: '14:52:40 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-03.jpg',
+    gridFSFileId: 'mock-gridfs-id-03',
+  },
+  {
+    id: 'del-4',
+    receiptNo: '21',
+    deliveryPerson: 'Suresh Patil (DP-02)',
+    customer: 'Sneha Deshmukh (Order #1052, Silver Oak)',
+    deliveryDate: '08 Oct 2026',
+    uploadedTime: '15:20:18 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-04.jpg',
+    gridFSFileId: 'mock-gridfs-id-04',
+  },
+  {
+    id: 'del-5',
+    receiptNo: '24',
+    deliveryPerson: 'Vikram Singh (DP-03)',
+    customer: 'Rohan Gupta (Order #1058, Heights)',
+    deliveryDate: '08 Oct 2026',
+    uploadedTime: '16:05:33 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-05.jpg',
+    gridFSFileId: 'mock-gridfs-id-05',
+  },
+  {
+    id: 'del-6',
+    receiptNo: '88',
+    deliveryPerson: 'Suresh Patil (DP-02)',
+    customer: 'Ananya Roy (Order #1021, Royal Palms)',
+    deliveryDate: '07 Oct 2026',
+    uploadedTime: '19:40:12 IST',
+    status: 'Completed',
+    slipImageUrl: '/img/img-01.jpg',
+    gridFSFileId: 'mock-gridfs-id-06',
+  },
+];
