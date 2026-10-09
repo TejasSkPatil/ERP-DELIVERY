@@ -8,13 +8,19 @@ const UserSchema = new Schema<IUserDocument>(
       required: [true, 'Name is required'],
       trim: true,
     },
+    username: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      sparse: true,
+      index: true,
+    },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, 'Email or username is required'],
       unique: true,
       trim: true,
-      lowercase: true, // Normalized email
-      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+      lowercase: true,
     },
     phone: {
       type: String,
@@ -23,17 +29,25 @@ const UserSchema = new Schema<IUserDocument>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
       select: false, // Excluded from normal query outputs
+    },
+    passwordHash: {
+      type: String,
+      select: false, // Legacy field support
     },
     role: {
       type: String,
       enum: {
-        values: ['ADMIN', 'DELIVERY_PERSON', 'USER'] as UserRole[],
-        message: '{VALUE} is not a valid user role',
+        values: ['ADMIN', 'DELIVERY_PERSON'] as UserRole[],
+        message: '{VALUE} is not a valid staff role. Allowed: ADMIN, DELIVERY_PERSON',
       },
-      default: 'USER',
+      default: 'DELIVERY_PERSON',
       required: true,
+    },
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'INACTIVE'],
+      default: 'ACTIVE',
     },
   },
   {
@@ -43,7 +57,8 @@ const UserSchema = new Schema<IUserDocument>(
         ret.id = ret._id;
         delete ret._id;
         delete ret.__v;
-        delete ret.password; // Excluded from JSON serialization
+        delete ret.password;
+        delete ret.passwordHash;
         return ret;
       },
     },
@@ -52,7 +67,8 @@ const UserSchema = new Schema<IUserDocument>(
         ret.id = ret._id;
         delete ret._id;
         delete ret.__v;
-        delete ret.password; // Excluded from Object transformation
+        delete ret.password;
+        delete ret.passwordHash;
         return ret;
       },
     },

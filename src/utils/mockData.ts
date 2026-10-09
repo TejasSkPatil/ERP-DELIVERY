@@ -21,7 +21,7 @@ export const INITIAL_DELIVERIES: DeliveryRecord[] = [
   {
     id: 'del-1',
     receiptNo: '7',
-    deliveryPerson: 'Rahul Sharma (DP-01)',
+    deliveryPerson: 'Bhushan Lokhande (DP-01)',
     customer: 'Amit Verma (Flat 402, Skyline Apt)',
     deliveryDate: '08 Oct 2026',
     uploadedTime: '13:45:20 IST',
@@ -43,7 +43,7 @@ export const INITIAL_DELIVERIES: DeliveryRecord[] = [
   {
     id: 'del-3',
     receiptNo: '19',
-    deliveryPerson: 'Rahul Sharma (DP-01)',
+    deliveryPerson: 'Bhushan Lokhande (DP-01)',
     customer: 'Karan Mehra (Order #1049, Regency)',
     deliveryDate: '08 Oct 2026',
     uploadedTime: '14:52:40 IST',

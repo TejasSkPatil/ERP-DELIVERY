@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageContainer from '../../components/layout/PageContainer';
 import DeliverySummary from '../../components/dashboard/DeliverySummary';
 import StatCard from '../../components/dashboard/StatCard';
-import DeliveryTable from '../../components/delivery/DeliveryTable';
-import DailyHistorySidebar from '../../components/dashboard/DailyHistorySidebar';
+import CalendarDeliveryChecker from '../../components/delivery/CalendarDeliveryChecker';
 import StorageManagementCard from '../../components/admin/StorageManagementCard';
 import SlipViewerModal from '../../components/delivery/SlipViewerModal';
 import { DeliveryRecord, DailyStat, StorageStats } from '../../types/delivery';
@@ -176,16 +175,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             ) : (
               <>
-                <DeliveryTable
-                  deliveries={filteredDeliveries}
-                  selectedDate={selectedDate}
-                  onViewSlip={(del) => setSelectedDelivery(del)}
-                />
-
-                <DailyHistorySidebar
-                  stats={dailyStats}
+                <CalendarDeliveryChecker
+                  deliveries={allDeliveries}
                   selectedDate={selectedDate}
                   onSelectDate={handleSelectDate}
+                  onViewSlip={(del) => setSelectedDelivery(del)}
                 />
               </>
             )}

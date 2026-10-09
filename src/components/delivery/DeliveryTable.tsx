@@ -16,10 +16,11 @@ export const DeliveryTable: React.FC<DeliveryTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredDeliveries = deliveries.filter((item) => {
+    const recipientText = item.recipientName || item.customer || '';
     return (
       item.receiptNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.deliveryPerson.toLowerCase().includes(searchTerm.toLowerCase())
+      recipientText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.deliveryPerson && item.deliveryPerson.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   });
 
@@ -38,14 +39,19 @@ export const DeliveryTable: React.FC<DeliveryTableProps> = ({
       header: 'Delivery Person',
       render: (row) => (
         <div style={{ fontWeight: 600, color: '#333' }}>
-          <i className="fa fa-user mr-1 text-muted"></i> {row.deliveryPerson}
+          <i className="fa fa-motorcycle mr-1 text-muted"></i> {row.deliveryPerson}
         </div>
       ),
     },
     {
       key: 'customer',
-      header: 'Customer / Order',
-      render: (row) => <div>{row.customer}</div>,
+      header: 'Recipient Information',
+      render: (row) => (
+        <div>
+          <i className="fa fa-map-marker mr-1 tm-color-primary"></i>
+          {row.recipientName || row.customer || 'Standard Recipient'}
+        </div>
+      ),
     },
     {
       key: 'deliveryDate',
@@ -114,7 +120,7 @@ export const DeliveryTable: React.FC<DeliveryTableProps> = ({
   );
 
   return (
-    <div className="col-sm-12 col-md-12 col-lg-8 col-xl-8">
+    <div className="col-12">
       <Table
         columns={columns}
         data={filteredDeliveries}

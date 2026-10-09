@@ -70,7 +70,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({
                 {todayDeliveriesCount} Deliveries Completed Today
               </h2>
               <p className="tm-color-white tm-section-subtitle">
-                Date: <strong>07 Oct 2026</strong> (Asia/Kolkata) &bull; Agent: <strong>Rahul Sharma (DP-01)</strong>
+                Date: <strong>07 Oct 2026</strong> (Asia/Kolkata) &bull; Agent: <strong>Bhushan Lokhande (DP-01)</strong>
               </p>
               <a href="#my-deliveries-section" className="tm-color-white tm-btn-white-bordered">
                 View My Slips ({deliveries.length})

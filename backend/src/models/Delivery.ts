@@ -9,6 +9,12 @@ const DeliverySchema = new Schema<IDeliveryDocument>(
       trim: true,
       index: true,
     },
+    recipientName: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',

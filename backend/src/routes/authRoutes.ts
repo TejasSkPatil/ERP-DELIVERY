@@ -1,14 +1,29 @@
 import { Router } from 'express';
-import { register, login, getMe } from '../controllers/authController';
-import { authenticate } from '../middleware/authMiddleware';
+import {
+  register,
+  login,
+  logout,
+  getMe,
+  obsoleteCustomerEndpoint,
+} from '../controllers/authController';
+import { authenticate, requireAdmin } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Public Authentication Endpoints
-router.post('/register', register);
+// Staff Login
 router.post('/login', login);
 
-// Protected Profile Endpoint
+// Staff Logout & Activity Logging
+router.post('/logout', logout);
+
+// Delivery Boy Registration (Public)
+router.post('/register', register);
+
+// Protected Staff Profile Endpoint
 router.get('/me', authenticate, getMe);
+
+// Obsolete Customer Endpoints (Return 410 Gone)
+router.post('/customer-login', obsoleteCustomerEndpoint);
+router.post('/customer-register', obsoleteCustomerEndpoint);
 
 export default router;

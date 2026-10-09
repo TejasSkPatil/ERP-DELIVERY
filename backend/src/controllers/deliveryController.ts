@@ -37,28 +37,26 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
     }
     const receiptNo = rawReceiptNo.trim();
 
-    // 3. Validate customer
-    const rawUserId = req.body.userId;
-    if (!rawUserId || typeof rawUserId !== 'string' || !rawUserId.trim()) {
-      return res.status(400).json({
+    // Duplicate check: prevent duplicate deliveries BEFORE creating GridFS files
+    const existingDelivery = await Delivery.findOne({ receiptNo, status: 'DELIVERED' });
+    if (existingDelivery) {
+      return res.status(409).json({
         success: false,
-        message: 'Customer user ID (userId) is required.',
+        message: 'This receipt has already been delivered.',
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(rawUserId.trim())) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid customer user ID format.',
-      });
-    }
+    // 3. Recipient information (retained as delivery-related information, no customer account required)
+    const recipientName = (
+      req.body.recipientName ||
+      req.body.customerName ||
+      req.body.customer ||
+      'Standard Recipient'
+    ).trim();
 
-    const customer = await User.findById(rawUserId.trim());
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer not found.',
-      });
+    let legacyUserId: mongoose.Types.ObjectId | undefined = undefined;
+    if (req.body.userId && mongoose.Types.ObjectId.isValid(req.body.userId.trim())) {
+      legacyUserId = new mongoose.Types.ObjectId(req.body.userId.trim());
     }
 
     // 4. Validate image file (from req.file)
@@ -79,7 +77,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       {
         receiptNo,
         deliveryPersonId,
-        customerId: customer._id,
+        recipientName,
       }
     );
 
@@ -97,7 +95,8 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
     try {
       delivery = await Delivery.create({
         receiptNo,
-        userId: customer._id,
+        recipientName,
+        userId: legacyUserId,
         deliveryPersonId: new mongoose.Types.ObjectId(deliveryPersonId),
         deliveryDate,
         uploadedAt,
@@ -123,6 +122,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       success: true,
       message: 'Delivery recorded successfully',
       receiptNo: delivery.receiptNo,
+      recipientName: delivery.recipientName,
       deliveryDate: delivery.deliveryDate,
       uploadedAt: delivery.uploadedAt,
       status: delivery.status,
@@ -130,6 +130,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       delivery: {
         id: delivery._id.toString(),
         receiptNo: delivery.receiptNo,
+        recipientName: delivery.recipientName,
         userId: delivery.userId?.toString(),
         deliveryPersonId: delivery.deliveryPersonId?.toString(),
         deliveryDate: delivery.deliveryDate,

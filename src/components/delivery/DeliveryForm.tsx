@@ -109,7 +109,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     Enter receipt number &amp; attach single slip image &bull; Auto-stamped in Asia/Kolkata
                   </p>
                 </div>
-                <Badge variant="navy">Shift Total: {todayCount} Deliveries</Badge>
+                <Badge variant="navy">Delivery Boy Total: {todayCount} Deliveries</Badge>
               </div>
 
               {/* Success Message Banner */}

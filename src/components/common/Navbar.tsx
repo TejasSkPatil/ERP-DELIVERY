@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { UserRole } from '../../types/auth';
+import { useAuth } from '../../context/AuthContext';
+import AuthModal from '../auth/AuthModal';
 
 interface NavbarProps {
   currentRole: UserRole;
@@ -13,6 +15,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
+  const { user, openAuthModal, logout } = useAuth();
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 100);
@@ -22,18 +26,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
   }, []);
 
   const handleRoleSelect = (role: UserRole) => {
+    if (role === 'ADMIN' && currentRole !== 'ADMIN') {
+      setIsRoleDropdownOpen(false);
+      setIsMobileMenuOpen(false);
+      openAuthModal('login');
+      return;
+    }
     onRoleChange(role);
     setIsRoleDropdownOpen(false);
     setIsMobileMenuOpen(false);
     if (role === 'DELIVERY_PERSON') navigate('/delivery');
     else if (role === 'ADMIN') navigate('/admin');
-    else navigate('/customer');
   };
 
   const roleMeta: Record<UserRole, { label: string; icon: string }> = {
-    DELIVERY_PERSON: { label: 'Delivery Person', icon: 'fa-motorcycle' },
+    DELIVERY_PERSON: { label: 'Delivery Boy', icon: 'fa-motorcycle' },
     ADMIN: { label: 'Admin Console', icon: 'fa-dashboard' },
-    USER: { label: 'Customer Portal', icon: 'fa-user' },
   };
 
   return (
@@ -59,39 +67,49 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
                 <span
                   style={{
                     color: '#ee5057',
-                    fontSize: '1rem',
-                    marginLeft: '8px',
-                    fontWeight: 600,
-                    letterSpacing: '1px',
+                    fontWeight: 300,
+                    marginLeft: '4px',
+                    fontSize: '1.4rem',
                   }}
                 >
                   DELIVERY
                 </span>
               </NavLink>
 
+              {/* Mobile Menu Hamburger */}
               <button
                 type="button"
                 id="nav-toggle"
-                className={`navbar-toggler ${isMobileMenuOpen ? '' : 'collapsed'}`}
-                aria-expanded={isMobileMenuOpen}
-                aria-label="Toggle navigation"
+                className={`navbar-toggler ${isMobileMenuOpen ? 'open' : ''}`}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Toggle navigation"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  padding: '10px',
+                  cursor: 'pointer',
+                }}
               >
-                <span className="navbar-toggler-icon"></span>
+                <span className="navbar-toggler-icon">
+                  <i className="fa fa-bars" style={{ fontSize: '1.5rem', color: '#ee5057' }}></i>
+                </span>
               </button>
 
+              {/* Navigation Menu */}
               <div
-                id="mainNav"
-                className={`collapse navbar-collapse tm-bg-white ${isMobileMenuOpen ? 'show' : ''}`}
+                className={`collapse navbar-collapse tm-bg-white ${
+                  isMobileMenuOpen ? 'show' : ''
+                }`}
+                id="nav-content"
               >
-                <ul className="navbar-nav ml-auto">
+                <ul className="navbar-nav ml-auto align-items-center">
                   <li className="nav-item">
                     <NavLink
                       to="/delivery"
                       className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <i className="fa fa-motorcycle mr-1"></i> Delivery Shift
+                      <i className="fa fa-motorcycle mr-1"></i> Delivery Boy
                     </NavLink>
                   </li>
 
@@ -99,19 +117,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
                     <NavLink
                       to="/admin"
                       className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      onClick={(e) => {
+                        if (currentRole !== 'ADMIN') {
+                          e.preventDefault();
+                          openAuthModal('login');
+                        }
+                        setIsMobileMenuOpen(false);
+                      }}
                     >
                       <i className="fa fa-dashboard mr-1"></i> Admin Console
-                    </NavLink>
-                  </li>
-
-                  <li className="nav-item">
-                    <NavLink
-                      to="/customer"
-                      className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <i className="fa fa-user mr-1"></i> Customer Verification
+                      {currentRole !== 'ADMIN' && (
+                        <i className="fa fa-lock ml-1 text-muted" style={{ fontSize: '0.75rem' }}></i>
+                      )}
                     </NavLink>
                   </li>
 
@@ -143,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
                           position: 'absolute',
                           top: '100%',
                           right: 0,
-                          minWidth: '220px',
+                          minWidth: '240px',
                           zIndex: 10005,
                           borderTop: '3px solid #ee5057',
                         }}
@@ -178,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
                             textTransform: 'uppercase',
                           }}
                         >
-                          <i className="fa fa-motorcycle mr-2 tm-color-primary"></i> Delivery Person
+                          <i className="fa fa-motorcycle mr-2 tm-color-primary"></i> Delivery Boy
                         </a>
                         <a
                           href="#role-admin"
@@ -200,27 +217,94 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
                         >
                           <i className="fa fa-dashboard mr-2 tm-color-primary"></i> Admin Console
                         </a>
-                        <a
-                          href="#role-user"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleRoleSelect('USER');
-                          }}
-                          className="d-block"
-                          style={{
-                            padding: '12px 18px',
-                            color: currentRole === 'USER' ? '#ee5057' : '#333',
-                            fontWeight: currentRole === 'USER' ? 700 : 400,
-                            backgroundColor: currentRole === 'USER' ? '#fbe9ea' : 'transparent',
-                            textDecoration: 'none',
-                            fontSize: '0.8rem',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          <i className="fa fa-user mr-2 tm-color-primary"></i> Customer / User
-                        </a>
+
+                        <div style={{ padding: '10px 15px', background: '#fafafa', borderTop: '1px solid #eee' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRoleDropdownOpen(false);
+                              openAuthModal('signup');
+                            }}
+                            className="btn btn-sm btn-block text-white mb-2"
+                            style={{ backgroundColor: '#ee5057', fontSize: '0.75rem', fontWeight: 700 }}
+                          >
+                            <i className="fa fa-user-plus mr-1"></i> Sign Up Delivery Boy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRoleDropdownOpen(false);
+                              openAuthModal('login');
+                            }}
+                            className="btn btn-sm btn-block btn-outline-secondary"
+                            style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                          >
+                            <i className="fa fa-sign-in mr-1"></i> Log In with Role
+                          </button>
+                          {user && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsRoleDropdownOpen(false);
+                                logout();
+                              }}
+                              className="btn btn-sm btn-block btn-link text-danger p-0 mt-2"
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              <i className="fa fa-power-off mr-1"></i> Log Out
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
+                  </li>
+
+                  {/* PROMINENT SIGN UP BUTTON */}
+                  <li className="nav-item ml-lg-2 my-2 my-lg-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        openAuthModal('signup');
+                      }}
+                      className="btn text-white font-weight-bold"
+                      style={{
+                        backgroundColor: '#ee5057',
+                        border: 'none',
+                        padding: '8px 18px',
+                        borderRadius: '4px',
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(238, 80, 87, 0.35)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <i className="fa fa-user-plus mr-1"></i> Sign Up
+                    </button>
+                  </li>
+
+                  {/* PROMINENT LOG IN BUTTON */}
+                  <li className="nav-item ml-lg-1 my-2 my-lg-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        openAuthModal('login');
+                      }}
+                      className="btn btn-light font-weight-bold"
+                      style={{
+                        border: '1px solid #ddd',
+                        color: '#1f3646',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        backgroundColor: '#f8f9fa',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <i className="fa fa-sign-in mr-1 tm-color-primary"></i> Log In
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -228,6 +312,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange }) => 
           </div>
         </div>
       </div>
+
+      <AuthModal />
     </>
   );
 };

@@ -24,7 +24,7 @@ export const DeliveryDashboardPage: React.FC = () => {
       {/* 2. Global Layout Header Component */}
       <Header
         title={`${deliveries.length} Deliveries Completed Today`}
-        subtitle="Date: 08 Oct 2026 (Asia/Kolkata) \u2022 Agent: Rahul Sharma (DP-01)"
+        subtitle="Date: 08 Oct 2026 (Asia/Kolkata) \u2022 Agent: Bhushan Lokhande (DP-01)"
         actionText={`View My Slips (${deliveries.length})`}
         actionHref="#my-deliveries-section"
         showDownArrow={true}

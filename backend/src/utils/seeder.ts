@@ -13,34 +13,27 @@ export const seedDatabaseIfEmpty = async () => {
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       console.log('[Seeder] Seeding default accounts into MongoDB Atlas...');
-      const adminHash = await bcrypt.hash('admin123', 10);
+      const adminHash = await bcrypt.hash('admin_05', 10);
       const deliveryHash = await bcrypt.hash('delivery123', 10);
-      const userHash = await bcrypt.hash('user123', 10);
 
       await User.create([
         {
           name: 'Admin Manager',
-          email: 'admin@pizzadeliver.com',
+          username: 'admin@26',
+          email: 'admin@26',
           phone: '+91 9820011223',
           password: adminHash,
           role: 'ADMIN',
         },
         {
-          name: 'Rahul Sharma (DP-01)',
+          name: 'Bhushan Lokhande (DP-01)',
           email: 'delivery@pizzadeliver.com',
           phone: '+91 9820022334',
           password: deliveryHash,
           role: 'DELIVERY_PERSON',
         },
-        {
-          name: 'Amit Verma',
-          email: 'customer@pizzadeliver.com',
-          phone: '+91 9820033445',
-          password: userHash,
-          role: 'USER',
-        },
       ]);
-      console.log('[Seeder] Default user accounts seeded.');
+      console.log('[Seeder] Default staff accounts (ADMIN, DELIVERY_PERSON) seeded.');
     }
 
     const deliveryCount = await Delivery.countDocuments();

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import MainContentWrapper from '../components/layout/MainContentWrapper';
+import ToastNotification from '../components/common/ToastNotification';
 import { useAuth } from '../hooks/useAuth';
 
 export const MainLayout: React.FC = () => {
@@ -13,12 +14,15 @@ export const MainLayout: React.FC = () => {
       {/* 1. Global Navbar */}
       <Navbar currentRole={currentRole} onRoleChange={switchRole} />
 
-      {/* 2. Page Content Route View */}
+      {/* 2. Global Toast Alerts (Login, Logout, Signup) */}
+      <ToastNotification />
+
+      {/* 3. Page Content Route View */}
       <main id="main-content">
         <Outlet />
       </main>
 
-      {/* 3. Global Footer */}
+      {/* 4. Global Footer */}
       <Footer />
     </MainContentWrapper>
   );

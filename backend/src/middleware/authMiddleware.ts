@@ -5,7 +5,7 @@ import env from '../config/env';
 
 /**
  * Express middleware to authenticate incoming requests via JWT Bearer token.
- * Payload contains: userId, role.
+ * Payload contains: userId, role ('ADMIN' | 'DELIVERY_PERSON').
  */
 export const authenticate = (
   req: AuthenticatedRequest,
@@ -38,6 +38,14 @@ export const authenticate = (
       return res.status(401).json({
         success: false,
         message: 'Invalid token payload.',
+      });
+    }
+
+    // Reject tokens that have retired customer roles
+    if ((decoded.role as string) === 'USER') {
+      return res.status(403).json({
+        success: false,
+        message: 'The customer role is deprecated. Access restricted to staff (ADMIN, DELIVERY_PERSON).',
       });
     }
 
@@ -103,9 +111,9 @@ export const requireDeliveryPerson = (
 };
 
 /**
- * Role-based authorization middleware requiring USER role.
+ * Role-based authorization middleware allowing any valid staff member (ADMIN or DELIVERY_PERSON).
  */
-export const requireUser = (
+export const requireStaff = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -117,10 +125,10 @@ export const requireUser = (
     });
   }
 
-  if (req.user.role !== 'USER') {
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'DELIVERY_PERSON') {
     return res.status(403).json({
       success: false,
-      message: 'Access denied: Requires USER role.',
+      message: 'Access denied: Staff privileges required (ADMIN or DELIVERY_PERSON).',
     });
   }
 
@@ -128,7 +136,21 @@ export const requireUser = (
 };
 
 /**
- * Generic middleware to enforce role-based access control across multiple roles.
+ * Deprecated middleware: returns 403 error for retired USER role.
+ */
+export const requireUser = (
+  _req: AuthenticatedRequest,
+  res: Response,
+  _next: NextFunction
+) => {
+  return res.status(403).json({
+    success: false,
+    message: 'The USER role has been retired from this application. Only staff roles (ADMIN, DELIVERY_PERSON) are permitted.',
+  });
+};
+
+/**
+ * Generic middleware to enforce role-based access control across multiple allowed roles.
  */
 export const requireRole = (allowedRoles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -154,6 +176,7 @@ export default {
   authenticate,
   requireAdmin,
   requireDeliveryPerson,
+  requireStaff,
   requireUser,
   requireRole,
 };
