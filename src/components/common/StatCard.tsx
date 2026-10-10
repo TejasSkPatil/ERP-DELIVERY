@@ -6,6 +6,7 @@ interface StatCardProps {
   count: number | string;
   subtitle: string;
   badge?: string;
+  colClass?: string;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -14,40 +15,73 @@ export const StatCard: React.FC<StatCardProps> = ({
   count,
   subtitle,
   badge,
+  colClass = 'col-12 col-sm-6 col-md-3 col-lg-3 col-xl-3',
 }) => {
   return (
-    <article className="col-sm-12 col-md-4 col-lg-4 col-xl-4 tm-article">
-      <i className={`fa tm-fa-6x ${icon} tm-color-primary tm-margin-b-20`}></i>
-      <h3 className="tm-color-primary tm-article-title-1">{title}</h3>
+    <article className={`${colClass} tm-article mb-4 mb-lg-0`}>
       <div
+        className="bg-white p-3 rounded"
         style={{
-          fontSize: '3.2rem',
-          fontWeight: 700,
-          color: '#1f3646',
-          lineHeight: '1.1',
-          marginBottom: '10px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+          border: '1px solid #f0f0f0',
+          minHeight: '235px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         }}
       >
-        {count}
-      </div>
-      <p className="tm-margin-b-0">{subtitle}</p>
-      {badge && (
-        <span
-          className="badge"
+        <i
+          className={`fa ${icon} tm-color-primary`}
+          style={{ fontSize: '2.5rem', marginBottom: '12px' }}
+        ></i>
+        <h3
+          className="tm-color-primary"
           style={{
-            background: '#ee5057',
-            color: 'white',
-            borderRadius: 0,
-            padding: '5px 10px',
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            marginTop: '8px',
-            display: 'inline-block',
+            fontSize: '1rem',
+            fontWeight: 700,
+            marginBottom: '6px',
+            whiteSpace: 'nowrap',
           }}
         >
-          {badge}
-        </span>
-      )}
+          {title}
+        </h3>
+        <div
+          style={{
+            fontSize: '2.5rem',
+            fontWeight: 700,
+            color: '#1f3646',
+            lineHeight: '1.1',
+            marginBottom: '6px',
+          }}
+        >
+          {count}
+        </div>
+        <p
+          className="tm-margin-b-0 text-muted"
+          style={{ fontSize: '0.78rem', lineHeight: '1.3', marginBottom: '8px' }}
+        >
+          {subtitle}
+        </p>
+        {badge && (
+          <span
+            className="badge"
+            style={{
+              background: '#ee5057',
+              color: 'white',
+              borderRadius: '2px',
+              padding: '4px 8px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
     </article>
   );
 };

@@ -26,6 +26,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const { user, openAuthModal, logout } = useAuth();
 
+  // ONLY true when an ADMIN account is logged in
+  const isAdmin = user?.role === 'ADMIN';
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 100);
@@ -35,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   const handleRoleSelect = (targetRole: UserRole) => {
-    if (targetRole === 'ADMIN' && currentRole !== 'ADMIN') {
+    if (targetRole === 'ADMIN' && !isAdmin) {
       // Admin Panel requires admin credentials (admin@26 / admin_05)
       setIsRoleDropdownOpen(false);
       setIsMobileMenuOpen(false);
@@ -134,29 +137,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </NavLink>
                   </li>
 
-                  {/* Admin Console Nav Link */}
-                  <li className="nav-item">
-                    <NavLink
-                      to="/admin"
-                      className={({ isActive }) =>
-                        `nav-link ${isActive ? 'active' : ''}`
-                      }
-                      onClick={(e) => {
-                        if (currentRole !== 'ADMIN') {
-                          e.preventDefault();
-                          openAuthModal('login');
+                  {/* Admin Console Nav Link - ONLY SHOWN WHEN ADMIN IS LOGGED IN */}
+                  {isAdmin && (
+                    <li className="nav-item">
+                      <NavLink
+                        to="/admin"
+                        className={({ isActive }) =>
+                          `nav-link ${isActive ? 'active' : ''}`
                         }
-                        setIsMobileMenuOpen(false);
-                      }}
-                    >
-                      <i className="fa fa-dashboard mr-1"></i> Admin Console
-                      {currentRole !== 'ADMIN' && (
-                        <i className="fa fa-lock ml-1 text-muted" style={{ fontSize: '0.75rem' }}></i>
-                      )}
-                    </NavLink>
-                  </li>
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <i className="fa fa-dashboard mr-1"></i> Admin Console
+                      </NavLink>
+                    </li>
+                  )}
 
-                  {/* Role Switcher Menu Tab */}
+                  {/* Active Role Switcher Menu Tab */}
                   <li
                     className="nav-item position-relative"
                     style={{ borderRight: '1px solid #ccc' }}
@@ -175,8 +171,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <i className={`fa ${roleMeta[currentRole].icon} mr-1`}></i>
-                      {roleMeta[currentRole].label}{' '}
+                      <i className={`fa ${isAdmin && currentRole === 'ADMIN' ? 'fa-dashboard' : 'fa-motorcycle'} mr-1`}></i>
+                      {isAdmin && currentRole === 'ADMIN' ? 'Admin Console' : 'Delivery Boy'}{' '}
                       <i
                         className={`fa fa-angle-${
                           isRoleDropdownOpen ? 'up' : 'down'
@@ -206,8 +202,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                             textTransform: 'uppercase',
                           }}
                         >
-                          Switch Active View:
+                          {isAdmin ? 'Switch Active View:' : 'Active Role:'}
                         </div>
+
+                        {/* Delivery Boy option */}
                         <a
                           href="#role-delivery"
                           onClick={(e) => {
@@ -217,10 +215,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           className="d-block"
                           style={{
                             padding: '12px 18px',
-                            color: currentRole === 'DELIVERY_PERSON' ? '#ee5057' : '#333',
-                            fontWeight: currentRole === 'DELIVERY_PERSON' ? 700 : 400,
+                            color: (!isAdmin || currentRole === 'DELIVERY_PERSON') ? '#ee5057' : '#333',
+                            fontWeight: (!isAdmin || currentRole === 'DELIVERY_PERSON') ? 700 : 400,
                             backgroundColor:
-                              currentRole === 'DELIVERY_PERSON' ? '#fbe9ea' : 'transparent',
+                              (!isAdmin || currentRole === 'DELIVERY_PERSON') ? '#fbe9ea' : 'transparent',
                             textDecoration: 'none',
                             borderBottom: '1px solid #eee',
                             fontSize: '0.8rem',
@@ -229,46 +227,47 @@ export const Navbar: React.FC<NavbarProps> = ({
                         >
                           <i className="fa fa-motorcycle mr-2 tm-color-primary"></i> Delivery Boy
                         </a>
-                        <a
-                          href="#role-admin"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleRoleSelect('ADMIN');
-                          }}
-                          className="d-block"
-                          style={{
-                            padding: '12px 18px',
-                            color: currentRole === 'ADMIN' ? '#ee5057' : '#333',
-                            fontWeight: currentRole === 'ADMIN' ? 700 : 400,
-                            backgroundColor:
-                              currentRole === 'ADMIN' ? '#fbe9ea' : 'transparent',
-                            textDecoration: 'none',
-                            borderBottom: '1px solid #eee',
-                            fontSize: '0.8rem',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          <i className="fa fa-dashboard mr-2 tm-color-primary"></i> Admin Console
-                          {currentRole !== 'ADMIN' && (
-                            <span className="badge badge-secondary ml-2" style={{ fontSize: '0.65rem' }}>
-                              Protected
-                            </span>
-                          )}
-                        </a>
+
+                        {/* Admin Console option - ONLY VISIBLE WHEN ADMIN IS LOGGED IN */}
+                        {isAdmin && (
+                          <a
+                            href="#role-admin"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleRoleSelect('ADMIN');
+                            }}
+                            className="d-block"
+                            style={{
+                              padding: '12px 18px',
+                              color: currentRole === 'ADMIN' ? '#ee5057' : '#333',
+                              fontWeight: currentRole === 'ADMIN' ? 700 : 400,
+                              backgroundColor:
+                                currentRole === 'ADMIN' ? '#fbe9ea' : 'transparent',
+                              textDecoration: 'none',
+                              borderBottom: '1px solid #eee',
+                              fontSize: '0.8rem',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            <i className="fa fa-dashboard mr-2 tm-color-primary"></i> Admin Console
+                          </a>
+                        )}
 
                         {/* Quick Auth Actions in Dropdown */}
                         <div style={{ padding: '10px 15px', background: '#fafafa', borderTop: '1px solid #eee' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsRoleDropdownOpen(false);
-                              openAuthModal('signup');
-                            }}
-                            className="btn btn-sm btn-block text-white mb-2"
-                            style={{ backgroundColor: '#ee5057', fontSize: '0.75rem', fontWeight: 700 }}
-                          >
-                            <i className="fa fa-user-plus mr-1"></i> Sign Up Delivery Boy
-                          </button>
+                          {!isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsRoleDropdownOpen(false);
+                                openAuthModal('signup');
+                              }}
+                              className="btn btn-sm btn-block text-white mb-2"
+                              style={{ backgroundColor: '#ee5057', fontSize: '0.75rem', fontWeight: 700 }}
+                            >
+                              <i className="fa fa-user-plus mr-1"></i> Sign Up Delivery Boy
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -278,7 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             className="btn btn-sm btn-block btn-outline-secondary"
                             style={{ fontSize: '0.75rem', fontWeight: 600 }}
                           >
-                            <i className="fa fa-sign-in mr-1"></i> Log In with Role
+                            <i className="fa fa-sign-in mr-1"></i> {isAdmin ? 'Switch Account' : 'Log In (Admin / Staff)'}
                           </button>
                           {user && (
                             <button
@@ -290,7 +289,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                               className="btn btn-sm btn-block btn-link text-danger p-0 mt-2"
                               style={{ fontSize: '0.75rem' }}
                             >
-                              <i className="fa fa-power-off mr-1"></i> Log Out
+                              <i className="fa fa-power-off mr-1"></i> Log Out ({user.username || user.name})
                             </button>
                           )}
                         </div>
@@ -298,56 +297,91 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </li>
 
-                  {/* PROMINENT SIGN UP BUTTON */}
-                  <li className="nav-item ml-lg-2 my-2 my-lg-0">
-                    <button
-                      type="button"
-                      id="navbar-signup-btn"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        openAuthModal('signup');
-                      }}
-                      className="btn text-white font-weight-bold"
-                      style={{
-                        backgroundColor: '#ee5057',
-                        border: 'none',
-                        padding: '8px 18px',
-                        borderRadius: '4px',
-                        fontSize: '0.88rem',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(238, 80, 87, 0.35)',
-                        transition: 'all 0.2s ease',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <i className="fa fa-user-plus mr-1"></i> Sign Up
-                    </button>
-                  </li>
+                  {/* PROMINENT SIGN UP BUTTON (Shown to non-admins) */}
+                  {!isAdmin && (
+                    <li className="nav-item ml-lg-2 my-2 my-lg-0">
+                      <button
+                        type="button"
+                        id="navbar-signup-btn"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          openAuthModal('signup');
+                        }}
+                        className="btn text-white font-weight-bold"
+                        style={{
+                          backgroundColor: '#ee5057',
+                          border: 'none',
+                          padding: '8px 18px',
+                          borderRadius: '4px',
+                          fontSize: '0.88rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 6px rgba(238, 80, 87, 0.35)',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <i className="fa fa-user-plus mr-1"></i> Sign Up
+                      </button>
+                    </li>
+                  )}
 
-                  {/* PROMINENT LOG IN BUTTON */}
+                  {/* LOG IN / USER STATUS BUTTON */}
                   <li className="nav-item ml-lg-1 my-2 my-lg-0">
-                    <button
-                      type="button"
-                      id="navbar-login-btn"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        openAuthModal('login');
-                      }}
-                      className="btn btn-light font-weight-bold"
-                      style={{
-                        border: '1px solid #ddd',
-                        color: '#1f3646',
-                        padding: '8px 16px',
-                        borderRadius: '4px',
-                        fontSize: '0.88rem',
-                        cursor: 'pointer',
-                        backgroundColor: '#f8f9fa',
-                        transition: 'all 0.2s ease',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <i className="fa fa-sign-in mr-1 tm-color-primary"></i> Log In
-                    </button>
+                    {isAdmin ? (
+                      <div className="d-flex align-items-center" style={{ gap: '8px' }}>
+                        <span
+                          className="badge badge-light border d-flex align-items-center"
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '0.82rem',
+                            color: '#ee5057',
+                            fontWeight: 700,
+                            borderRadius: '4px',
+                          }}
+                        >
+                          <i className="fa fa-shield mr-1"></i> Admin ({user?.username || 'admin@26'})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            logout();
+                            navigate('/delivery');
+                          }}
+                          className="btn btn-outline-danger btn-sm font-weight-bold"
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            fontSize: '0.82rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <i className="fa fa-sign-out mr-1"></i> Log Out
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        id="navbar-login-btn"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          openAuthModal('login');
+                        }}
+                        className="btn btn-light font-weight-bold"
+                        style={{
+                          border: '1px solid #ddd',
+                          color: '#1f3646',
+                          padding: '8px 16px',
+                          borderRadius: '4px',
+                          fontSize: '0.88rem',
+                          cursor: 'pointer',
+                          backgroundColor: '#f8f9fa',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <i className="fa fa-sign-in mr-1 tm-color-primary"></i> Log In
+                      </button>
+                    )}
                   </li>
                 </ul>
               </div>

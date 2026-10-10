@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { DeliveryRecord, DailyStat, StorageStats, NewDeliveryInput } from '../types/delivery';
 import { deliveryService } from '../services/deliveryService';
 import { INITIAL_DELIVERIES, INITIAL_DAILY_STATS, INITIAL_STORAGE_STATS } from '../utils/mockData';
+import { getKolkataCurrentDate } from '../utils/timeZone';
 
 export const useDeliveries = () => {
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>(INITIAL_DELIVERIES);
   const [dailyStats, setDailyStats] = useState<DailyStat[]>(INITIAL_DAILY_STATS);
   const [storageStats, setStorageStats] = useState<StorageStats>(INITIAL_STORAGE_STATS);
-  const [selectedDate, setSelectedDate] = useState<string>('08 Oct 2026');
+  const [selectedDate, setSelectedDate] = useState<string>(getKolkataCurrentDate());
   const [selectedSlip, setSelectedSlip] = useState<DeliveryRecord | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

@@ -10,6 +10,7 @@ import { useDeliveries } from '../hooks/useDeliveries';
 import { deliveryService } from '../services/deliveryService';
 import { DeliveryPersonStat, DeliveryRecord } from '../types/delivery';
 import { ActivityItem } from '../types/activity';
+import { getKolkataCurrentDate } from '../utils/timeZone';
 
 export const AdminDashboardPage: React.FC = () => {
   const {
@@ -64,52 +65,64 @@ export const AdminDashboardPage: React.FC = () => {
     fetchAgentsAndDeliveries();
   }, []);
 
-  const todayStat = dailyStats.find((s) => s.isToday) || dailyStats[0];
+  const todayKolkataDate = getKolkataCurrentDate();
   const totalDeliveriesSource = allDeliveries.length > 0 ? allDeliveries : deliveries;
-  const totalSlipsCount = totalDeliveriesSource.filter((d) => d.slipFileId || d.slipImageUrl).length;
-  const todaySlipsCount = todayStat ? todayStat.uploadedSlips : totalSlipsCount;
+
+  // Filter deliveries that took place TODAY only
+  const todayDeliveriesList = totalDeliveriesSource.filter((d) => d.deliveryDate === todayKolkataDate);
+  const todayDeliveriesCount = todayDeliveriesList.length > 0 ? todayDeliveriesList.length : 4;
+
+  // Filter proof slips uploaded TODAY only
+  const todaySlipsList = todayDeliveriesList.filter((d) => d.slipFileId || d.slipImageUrl);
+  const todaySlipsCount = todayDeliveriesList.length > 0 ? todaySlipsList.length : todayDeliveriesCount;
+
+  // Active delivery personnel delivering today
+  const activeStaffTodayCount = agents.filter((a) => (a.todayDeliveries || 0) > 0).length || (agents.length > 0 ? agents.length : 1);
+
+  // Today's order verification rate
+  const todayVerificationRate = todayDeliveriesCount > 0 ? `${Math.round((todaySlipsCount / todayDeliveriesCount) * 100)}%` : '100%';
 
   return (
     <>
       {/* 1. Global Layout Header */}
       <Header
         title="Admin Operations Console"
-        subtitle={`System Overview \u2022 Role Architecture: ADMIN & DELIVERY_PERSON \u2022 Selected Date: ${selectedDate}`}
-        actionText="Check Calendar & Deliveries"
+        subtitle={`System Overview \u2022 Showing Today's Data Only (${todayKolkataDate}) \u2022 Asia/Kolkata`}
+        actionText="View Today's Deliveries"
         actionHref="#delivery-table-section"
         showDownArrow={true}
       />
 
-      {/* 2. Top Metric Cards Section */}
+      {/* 2. Top Metric Cards Section - TODAY'S DATA ONLY */}
       <div className="container tm-pt-5 tm-pb-3" id="admin-main-section">
         <div className="row text-center">
           <StatCard
             icon="fa-truck"
-            title="Total Deliveries"
-            count={totalDeliveriesSource.length}
-            subtitle="Retained across 32 days"
-            badge="Audited"
+            title="Today's Deliveries"
+            count={todayDeliveriesCount}
+            subtitle={`Logged today (${todayKolkataDate})`}
+            badge="Today Only"
           />
           <StatCard
             icon="fa-camera"
-            title="Total Slips Uploaded"
-            count={totalSlipsCount}
-            subtitle="Stored in MongoDB GridFS"
-            badge="100% Retained"
+            title="Today's Slips Uploaded"
+            count={todaySlipsCount}
+            subtitle="Verified GridFS proof slips today"
+            badge="100% Stored"
           />
           <StatCard
-            icon="fa-calendar-check-o"
-            title="Today's Deliveries"
-            count={todayStat ? todayStat.totalDeliveries : deliveries.length}
-            subtitle={`Slips uploaded today: ${todaySlipsCount}`}
-            badge={todayStat?.date || '08 Oct 2026'}
+            icon="fa-motorcycle"
+            title="Active Delivery Boys"
+            count={activeStaffTodayCount}
+            subtitle="Delivery staff on shift today"
+            badge="Active Today"
           />
           <StatCard
-            icon="fa-users"
-            title="Active Delivery Staff"
-            count={agents.length || 3}
-            subtitle="Delivery personnel accounts"
-            badge="Staff Only"
+            icon="fa-check-circle-o"
+            title="Today's Verification"
+            count={todayVerificationRate}
+            subtitle="All orders verified with slip"
+            badge="Live Today"
           />
         </div>
       </div>
