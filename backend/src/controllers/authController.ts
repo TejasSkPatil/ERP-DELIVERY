@@ -258,7 +258,7 @@ export const logout = async (req: AuthenticatedRequest, res: Response) => {
       userName: userName || 'Staff Member',
       userRole: userRole || 'DELIVERY_PERSON',
       description: `Logged out successfully`,
-      ip: (req.headers['x-forwarded-for'] as string) || req.ip || '',
+      ip: (req.headers?.['x-forwarded-for'] as string) || req.ip || '',
       timestamp: new Date(),
     });
   } catch (actErr) {

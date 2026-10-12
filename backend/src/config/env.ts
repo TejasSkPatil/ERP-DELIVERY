@@ -10,7 +10,7 @@ const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   MONGODB_URI: z
     .string({
-      required_error: 'MONGODB_URI is required. Please set MONGODB_URI in your .env file.',
+      message: 'MONGODB_URI is required. Please set MONGODB_URI in your .env file.',
     })
     .min(1, 'MONGODB_URI must not be empty.'),
   APP_TIMEZONE: z.string().default('Asia/Kolkata'),

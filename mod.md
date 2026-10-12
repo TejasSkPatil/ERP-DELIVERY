@@ -510,3 +510,124 @@ Do not automatically reject different receipt numbers based solely on perceptual
 
 Do not start the separate end-to-end testing phase in this task.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Update Authentication Navbar — Admin and User Login States
+
+## Objective
+Update the existing navbar authentication buttons so that Sign Up, Log In, the logged-in username badge, and Log Out change dynamically based on the user's authentication state and role.
+
+Preserve the existing UI design, colors, icons, spacing, and responsive layout.
+
+### 1. When the user is NOT logged in
+
+Display these two buttons, matching the provided screenshot:
+
+- **Sign Up** — red background, white text and user-plus icon.
+- **Log In** — light background, dark text and login icon.
+
+Both Admin and normal User sessions should display these buttons when logged out.
+
+### 2. When an ADMIN is logged in
+
+Replace Sign Up and Log In with:
+
+- **Admin badge:** `ADMIN (username)` with a shield icon.
+- **Log Out** button with a logout icon.
+
+Example:
+
+`ADMIN (admin@26)    Log Out`
+
+Use the actual authenticated admin username dynamically. Do not hardcode `admin@26`.
+
+### 3. When a normal USER is logged in
+
+Replace Sign Up and Log In with:
+
+- **User badge:** `USER (username)` with an appropriate user icon.
+- **Log Out** button with a logout icon.
+
+Example:
+
+`USER (bhushan26)    Log Out`
+
+Display the actual username of the logged-in user. Never show the admin label for a normal user.
+
+### 4. Authentication state and behavior
+
+- Read the current authentication state from the existing authentication context, store, or session mechanism.
+- Use the authenticated user's actual role and username.
+- Update the navbar immediately after successful login, logout, or signup.
+- After logout, clear the authentication state and relevant stored session/token data using the existing logout mechanism.
+- Redirect the user to the appropriate public page after logout.
+- Ensure protected pages and API endpoints remain protected after logout.
+- On page refresh, restore the navbar state from the existing valid session/token mechanism.
+- Do not treat a username stored in localStorage alone as proof of authentication.
+
+### 5. Signup behavior
+
+- Keep Sign Up visible only when the user is logged out.
+- On successful signup, follow the application's existing behavior: if signup automatically logs the user in, display their username badge and Log Out button; otherwise, show the logged-out buttons until they sign in.
+- Do not display Sign Up while an authenticated user is logged in.
+
+### 6. UI requirements
+
+- Match the supplied reference screenshots.
+- Admin badge: subtle light background, red shield icon, red username text.
+- User badge: subtle light background, user icon, and username text.
+- Log Out button: white/light background, red border, red logout icon, and red text.
+- Keep the existing Sign Up button red and Log In button light-colored.
+- Keep the buttons aligned, evenly spaced, and responsive on mobile.
+- Use the existing icon library and styling conventions.
+- Avoid duplicating navbar implementations across pages; reuse the existing shared navbar/component.
+
+### 7. Implementation and testing
+
+Before editing, inspect the existing navbar, authentication context, login/signup forms, backend authentication responses, and role definitions.
+
+Implement the changes using the project's existing architecture. Do not create a second authentication system or hardcode usernames or roles.
+
+Test these cases:
+1. Logged-out visitor sees Sign Up and Log In.
+2. Admin login shows the correct admin username and Log Out.
+3. Normal user login shows the correct username and Log Out.
+4. Clicking Log Out clears the session and restores Sign Up and Log In.
+5. Refreshing a page preserves a valid login state.
+6. Expired or invalid authentication does not leave a false logged-in navbar.
+7. Admin and normal users cannot access each other's protected functionality.
+
+Run relevant tests and TypeScript checks, and report the files changed and actual results.

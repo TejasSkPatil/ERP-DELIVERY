@@ -27,7 +27,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, openAuthModal, logout } = useAuth();
 
   // ONLY true when an ADMIN account is logged in
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = Boolean(user && user.role === 'ADMIN');
+  const displayUsername = user?.username || user?.name || (user?.email ? user.email.split('@')[0] : 'user');
+
+  const handleLogout = () => {
+    setIsMobileMenuOpen(false);
+    setIsRoleDropdownOpen(false);
+    logout();
+    navigate('/');
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,11 +58,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     setIsMobileMenuOpen(false);
     if (targetRole === 'DELIVERY_PERSON') navigate('/delivery');
     else if (targetRole === 'ADMIN') navigate('/admin');
-  };
-
-  const roleMeta: Record<UserRole, { label: string; icon: string }> = {
-    DELIVERY_PERSON: { label: 'Delivery Boy', icon: 'fa-motorcycle' },
-    ADMIN: { label: 'Admin Console', icon: 'fa-dashboard' },
   };
 
   return (
@@ -255,41 +258,42 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                         {/* Quick Auth Actions in Dropdown */}
                         <div style={{ padding: '10px 15px', background: '#fafafa', borderTop: '1px solid #eee' }}>
-                          {!isAdmin && (
+                          {!user ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsRoleDropdownOpen(false);
+                                  openAuthModal('signup');
+                                }}
+                                className="btn btn-sm btn-block text-white mb-2"
+                                style={{ backgroundColor: '#ee5057', fontSize: '0.75rem', fontWeight: 700 }}
+                              >
+                                <i className="fa fa-user-plus mr-1"></i> Sign Up
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsRoleDropdownOpen(false);
+                                  openAuthModal('login');
+                                }}
+                                className="btn btn-sm btn-block btn-outline-secondary"
+                                style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                              >
+                                <i className="fa fa-sign-in mr-1"></i> Log In
+                              </button>
+                            </>
+                          ) : (
                             <button
                               type="button"
                               onClick={() => {
                                 setIsRoleDropdownOpen(false);
-                                openAuthModal('signup');
+                                handleLogout();
                               }}
-                              className="btn btn-sm btn-block text-white mb-2"
-                              style={{ backgroundColor: '#ee5057', fontSize: '0.75rem', fontWeight: 700 }}
+                              className="btn btn-sm btn-block btn-outline-danger p-1"
+                              style={{ fontSize: '0.75rem', fontWeight: 600 }}
                             >
-                              <i className="fa fa-user-plus mr-1"></i> Sign Up Delivery Boy
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsRoleDropdownOpen(false);
-                              openAuthModal('login');
-                            }}
-                            className="btn btn-sm btn-block btn-outline-secondary"
-                            style={{ fontSize: '0.75rem', fontWeight: 600 }}
-                          >
-                            <i className="fa fa-sign-in mr-1"></i> {isAdmin ? 'Switch Account' : 'Log In (Admin / Staff)'}
-                          </button>
-                          {user && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsRoleDropdownOpen(false);
-                                logout();
-                              }}
-                              className="btn btn-sm btn-block btn-link text-danger p-0 mt-2"
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              <i className="fa fa-power-off mr-1"></i> Log Out ({user.username || user.name})
+                              <i className="fa fa-sign-out mr-1"></i> Log Out ({displayUsername})
                             </button>
                           )}
                         </div>
@@ -297,92 +301,138 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </li>
 
-                  {/* PROMINENT SIGN UP BUTTON (Shown to non-admins) */}
-                  {!isAdmin && (
-                    <li className="nav-item ml-lg-2 my-2 my-lg-0">
-                      <button
-                        type="button"
-                        id="navbar-signup-btn"
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          openAuthModal('signup');
-                        }}
-                        className="btn text-white font-weight-bold"
-                        style={{
-                          backgroundColor: '#ee5057',
-                          border: 'none',
-                          padding: '8px 18px',
-                          borderRadius: '4px',
-                          fontSize: '0.88rem',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 6px rgba(238, 80, 87, 0.35)',
-                          transition: 'all 0.2s ease',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <i className="fa fa-user-plus mr-1"></i> Sign Up
-                      </button>
-                    </li>
-                  )}
-
-                  {/* LOG IN / USER STATUS BUTTON */}
-                  <li className="nav-item ml-lg-1 my-2 my-lg-0">
-                    {isAdmin ? (
-                      <div className="d-flex align-items-center" style={{ gap: '8px' }}>
-                        <span
-                          className="badge badge-light border d-flex align-items-center"
-                          style={{
-                            padding: '8px 12px',
-                            fontSize: '0.82rem',
-                            color: '#ee5057',
-                            fontWeight: 700,
-                            borderRadius: '4px',
-                          }}
-                        >
-                          <i className="fa fa-shield mr-1"></i> Admin ({user?.username || 'admin@26'})
-                        </span>
+                  {/* Dynamic Authentication Navbar Section */}
+                  {!user ? (
+                    <>
+                      {/* Sign Up Button (Logged Out) */}
+                      <li className="nav-item ml-lg-2 my-2 my-lg-0">
                         <button
                           type="button"
+                          id="navbar-signup-btn"
                           onClick={() => {
-                            logout();
-                            navigate('/delivery');
+                            setIsMobileMenuOpen(false);
+                            openAuthModal('signup');
                           }}
-                          className="btn btn-outline-danger btn-sm font-weight-bold"
+                          className="btn text-white font-weight-bold"
                           style={{
-                            padding: '6px 12px',
+                            backgroundColor: '#ee5057',
+                            border: 'none',
+                            padding: '8px 18px',
                             borderRadius: '4px',
-                            fontSize: '0.82rem',
+                            fontSize: '0.88rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(238, 80, 87, 0.35)',
+                            transition: 'all 0.2s ease',
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          <i className="fa fa-sign-out mr-1"></i> Log Out
+                          <i className="fa fa-user-plus mr-1"></i> Sign Up
+                        </button>
+                      </li>
+
+                      {/* Log In Button (Logged Out) */}
+                      <li className="nav-item ml-lg-1 my-2 my-lg-0">
+                        <button
+                          type="button"
+                          id="navbar-login-btn"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            openAuthModal('login');
+                          }}
+                          className="btn btn-light font-weight-bold"
+                          style={{
+                            border: '1px solid #ddd',
+                            color: '#1f3646',
+                            padding: '8px 16px',
+                            borderRadius: '4px',
+                            fontSize: '0.88rem',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa',
+                            transition: 'all 0.2s ease',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <i className="fa fa-sign-in mr-1 tm-color-primary" style={{ color: '#ee5057' }}></i> Log In
+                        </button>
+                      </li>
+                    </>
+                  ) : (
+                    /* Authenticated State: Admin or Normal User */
+                    <li className="nav-item ml-lg-2 my-2 my-lg-0">
+                      <div className="d-flex align-items-center flex-wrap" style={{ gap: '10px' }}>
+                        {isAdmin ? (
+                          /* Admin Badge: Subtle light background, red shield icon, red username text */
+                          <span
+                            id="navbar-admin-badge"
+                            className="badge border d-inline-flex align-items-center"
+                            style={{
+                              padding: '8px 14px',
+                              fontSize: '0.85rem',
+                              color: '#ee5057',
+                              backgroundColor: '#fff5f5',
+                              borderColor: '#f5c6cb',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              textTransform: 'none',
+                              whiteSpace: 'nowrap',
+                              letterSpacing: '0.2px',
+                            }}
+                          >
+                            <i className="fa fa-shield mr-2" style={{ color: '#ee5057' }}></i>
+                            {displayUsername}
+                          </span>
+                        ) : (
+                          /* User Badge: Subtle light background, user icon, and username text */
+                          <span
+                            id="navbar-user-badge"
+                            className="badge border d-inline-flex align-items-center"
+                            style={{
+                              padding: '8px 14px',
+                              fontSize: '0.85rem',
+                              color: '#333333',
+                              backgroundColor: '#f8f9fa',
+                              borderColor: '#e2e8f0',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              textTransform: 'none',
+                              whiteSpace: 'nowrap',
+                              letterSpacing: '0.2px',
+                            }}
+                          >
+                            <i className="fa fa-user mr-2" style={{ color: '#64748b' }}></i>
+                            USER ({displayUsername})
+                          </span>
+                        )}
+
+                        {/* Log Out button: White/light background, red border, red logout icon, and red text */}
+                        <button
+                          type="button"
+                          id="navbar-logout-btn"
+                          onClick={handleLogout}
+                          className="btn font-weight-bold d-inline-flex align-items-center"
+                          style={{
+                            padding: '7px 14px',
+                            borderRadius: '4px',
+                            fontSize: '0.85rem',
+                            whiteSpace: 'nowrap',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #ee5057',
+                            color: '#ee5057',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fbe9ea';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          <i className="fa fa-sign-out mr-1" style={{ color: '#ee5057' }}></i> Log Out
                         </button>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        id="navbar-login-btn"
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          openAuthModal('login');
-                        }}
-                        className="btn btn-light font-weight-bold"
-                        style={{
-                          border: '1px solid #ddd',
-                          color: '#1f3646',
-                          padding: '8px 16px',
-                          borderRadius: '4px',
-                          fontSize: '0.88rem',
-                          cursor: 'pointer',
-                          backgroundColor: '#f8f9fa',
-                          transition: 'all 0.2s ease',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <i className="fa fa-sign-in mr-1 tm-color-primary"></i> Log In
-                      </button>
-                    )}
-                  </li>
+                    </li>
+                  )}
                 </ul>
               </div>
             </nav>

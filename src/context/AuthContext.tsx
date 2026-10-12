@@ -48,39 +48,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setToast(null);
   };
 
-  // Verify existing token or default to Bhushan Lokhande Delivery Boy
+  // Verify existing token or restore session on refresh
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         try {
           const res = await authService.getMe();
-          setUser(res.user);
-          setToken(storedToken);
-          setIsLoading(false);
-          return;
+          if (res?.user) {
+            setUser(res.user);
+            setToken(storedToken);
+            setIsLoading(false);
+            return;
+          }
         } catch {
           localStorage.removeItem('token');
         }
       }
 
-      // Default active staff user (Delivery Boy)
-      try {
-        const res = await authService.login('delivery@pizzadeliver.com', 'delivery123', 'DELIVERY_PERSON');
-        localStorage.setItem('token', res.token);
-        setToken(res.token);
-        setUser(res.user);
-      } catch {
-        setUser({
-          id: 'usr-delivery',
-          name: 'Bhushan Lokhande (DP-01)',
-          username: 'delivery',
-          email: 'delivery@pizzadeliver.com',
-          role: 'DELIVERY_PERSON',
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      setToken(null);
+      setUser(null);
+      setIsLoading(false);
     };
 
     initAuth();
@@ -187,8 +175,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       title: 'Logged Out Successfully',
       message: 'You have been safely signed out. See you next time!',
     });
-
-    openAuthModal('login');
   };
 
   const currentRole: UserRole = (user?.role as UserRole) || 'DELIVERY_PERSON';
