@@ -1,7 +1,12 @@
 import { Delivery } from '../models/Delivery';
+import { AcceptedReceipt } from '../models/AcceptedReceipt';
 import { InMemoryDatabase } from '../config/database';
 import { gridfsService } from './gridfsService';
 import { getKolkataDateInfo, get32DayCutoffDate } from '../utils/timeZone';
+import { normalizeSlipNumber } from '../utils/normalize-slip-number';
+import { calculateImageSha256, isImageDuplicate } from './image-hash.service';
+import { calculatePerceptualHash, checkPerceptualDuplicate } from './perceptual-hash.service';
+import { isReceiptRegistered, registerReceipt } from './receiptRegistry.service';
 
 export const deliveryService = {
   create: async (data: {
@@ -13,27 +18,102 @@ export const deliveryService = {
     fileName?: string;
     status?: 'PENDING' | 'DELIVERED';
   }) => {
+    const rawReceiptNo = data.receiptNo || '';
+    const normalizedReceiptNo = normalizeSlipNumber(rawReceiptNo);
+    if (!normalizedReceiptNo) {
+      throw new Error('A valid receipt number is required.');
+    }
+
+    // Check permanent registry before proceeding
+    if (await isReceiptRegistered(normalizedReceiptNo)) {
+      throw new Error('This receipt has already been delivered.');
+    }
+
     const now = new Date();
     const { deliveryDate, uploadedTime } = getKolkataDateInfo(now);
 
+    let imageSha256: string | null = null;
+    let perceptualHash: string | null = null;
+    let perceptualMatchDetected = false;
+    let perceptualMatches: any[] = [];
+    let acceptedReceiptDoc: any = null;
     let slipFileId: any = null;
 
-    // Stream image directly into MongoDB GridFS if fileBuffer is provided
     if (data.fileBuffer) {
-      const uploadedId = await gridfsService.uploadSlip(
-        data.fileBuffer,
-        data.fileName || `receipt_${data.receiptNo}.jpg`,
-        data.fileMimeType || 'image/jpeg',
-        { receiptNo: data.receiptNo, uploadedTime }
-      );
+      // 5. Compute SHA-256 hash of original image bytes
+      imageSha256 = calculateImageSha256(data.fileBuffer);
 
-      if (uploadedId) {
-        slipFileId = uploadedId;
+      // 6. Check exact-image hash
+      if (await isImageDuplicate(imageSha256)) {
+        throw new Error('This delivery slip image has already been uploaded and processed.');
+      }
+
+      // 7. Check perceptual hash for likely modified copies
+      try {
+        perceptualHash = await calculatePerceptualHash(data.fileBuffer);
+        const pCheck = await checkPerceptualDuplicate(perceptualHash);
+        perceptualMatchDetected = pCheck.hasLikelyMatch;
+        perceptualMatches = pCheck.matches;
+      } catch (pErr: any) {
+        console.warn('[DeliveryService] Perceptual hash calculation warning:', pErr.message);
+      }
+
+      // 8. Safely reserve receipt number and exact image hash
+      try {
+        acceptedReceiptDoc = await registerReceipt({
+          normalizedReceiptNo,
+          originalReceiptNo: rawReceiptNo.trim(),
+          imageSha256,
+          perceptualHash,
+          acceptedAt: now,
+          uploaderId: data.deliveryPersonId,
+          slipFileId: null,
+          metadata: {
+            status: 'RESERVED',
+            perceptualMatchDetected,
+            perceptualMatches,
+          },
+        });
+      } catch (registryErr: any) {
+        if (registryErr.code === 11000 || registryErr.message?.includes('E11000')) {
+          const isImageDup =
+            registryErr.message?.includes('imageSha256') ||
+            registryErr.keyPattern?.imageSha256;
+          throw new Error(
+            isImageDup
+              ? 'This delivery slip image has already been uploaded and processed.'
+              : 'This receipt has already been delivered.'
+          );
+        }
+        throw registryErr;
+      }
+
+      // 9. Upload image into MongoDB GridFS
+      try {
+        const uploadedId = await gridfsService.uploadSlip(
+          data.fileBuffer,
+          data.fileName || `receipt_${normalizedReceiptNo}.jpg`,
+          data.fileMimeType || 'image/jpeg',
+          { receiptNo: normalizedReceiptNo, uploadedTime, imageSha256, perceptualHash }
+        );
+
+        if (uploadedId) {
+          slipFileId = uploadedId;
+        }
+      } catch (uploadErr) {
+        // Rollback reservation if GridFS upload fails
+        if (acceptedReceiptDoc?._id) {
+          try {
+            await AcceptedReceipt.deleteOne({ _id: acceptedReceiptDoc._id });
+          } catch {}
+        }
+        throw uploadErr;
       }
     }
 
+    // 10. Create Delivery record and link to permanent registry
     const newRecord: any = {
-      receiptNo: data.receiptNo.trim().replace(/^#/, ''),
+      receiptNo: normalizedReceiptNo,
       userId: data.userId || undefined,
       deliveryPersonId: data.deliveryPersonId,
       deliveryDate,
@@ -42,12 +122,44 @@ export const deliveryService = {
       status: data.status || 'DELIVERED',
     };
 
-    if (InMemoryDatabase.isUsingFallback) {
-      newRecord.id = `del-${Date.now()}`;
-      InMemoryDatabase.deliveries.unshift(newRecord);
-      return newRecord;
-    } else {
-      return await Delivery.create(newRecord);
+    let savedDelivery: any;
+    try {
+      if (InMemoryDatabase.isUsingFallback) {
+        newRecord.id = `del-${Date.now()}`;
+        InMemoryDatabase.deliveries.unshift(newRecord);
+        savedDelivery = newRecord;
+      } else {
+        savedDelivery = await Delivery.create(newRecord);
+      }
+
+      // Link deliveryId and slipFileId to AcceptedReceipt record
+      if (acceptedReceiptDoc?._id) {
+        try {
+          await AcceptedReceipt.updateOne(
+            { _id: acceptedReceiptDoc._id },
+            {
+              deliveryId: savedDelivery._id,
+              slipFileId,
+              $set: { 'metadata.status': 'ACCEPTED' },
+            }
+          );
+        } catch {}
+      }
+
+      return savedDelivery;
+    } catch (dbError) {
+      // Rollback reservation and cleanup orphaned GridFS file
+      if (acceptedReceiptDoc?._id) {
+        try {
+          await AcceptedReceipt.deleteOne({ _id: acceptedReceiptDoc._id });
+        } catch {}
+      }
+      if (slipFileId) {
+        try {
+          await gridfsService.deleteSlip(slipFileId.toString());
+        } catch {}
+      }
+      throw dbError;
     }
   },
 

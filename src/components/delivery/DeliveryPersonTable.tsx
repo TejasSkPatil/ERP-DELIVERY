@@ -22,33 +22,36 @@ export const DeliveryPersonTable: React.FC<DeliveryPersonTableProps> = ({
       ),
     },
     {
-      key: 'customer',
-      header: 'Customer',
-      render: (row) => <strong>{row.customer}</strong>,
-    },
-    {
-      key: 'uploadedTime',
-      header: 'Upload Time',
+      key: 'receiptDate',
+      header: 'Receipt Date.',
       render: (row) => (
-        <span style={{ fontFamily: 'monospace', color: '#1f3646' }}>{row.uploadedTime}</span>
+        <span style={{ fontWeight: 500, color: '#2c3e50' }}>
+          {row.receiptDate || row.deliveryDate || '-'}
+        </span>
       ),
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: 'receiptTime',
+      header: 'Receipt Time.',
       render: (row) => (
-        <Badge variant={row.status === 'Completed' ? 'success' : 'warning'} icon="fa-check">
-          {row.status}
-        </Badge>
+        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1f3646' }}>
+          {row.receiptTime || '-'}
+        </span>
       ),
     },
     {
-      key: 'action',
-      header: 'Slip',
+      key: 'slipImageUrl',
+      header: 'Receipt Image',
       align: 'center',
       render: (row) => (
-        <Button variant="primary" size="sm" icon="fa-eye" onClick={() => onViewSlip(row)}>
-          View
+        <Button
+          variant="primary"
+          size="sm"
+          icon="fa-file-image-o"
+          onClick={() => onViewSlip(row)}
+          style={{ backgroundColor: '#ee5057', borderColor: '#ee5057' }}
+        >
+          View Slip
         </Button>
       ),
     },

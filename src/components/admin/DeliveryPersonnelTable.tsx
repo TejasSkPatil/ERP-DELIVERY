@@ -169,7 +169,7 @@ export const DeliveryPersonnelTable: React.FC<DeliveryPersonnelTableProps> = ({
                       {formattedLastActive}
                     </td>
                     <td className="text-center">
-                      <Badge variant={agent.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                      <Badge variant={agent.status === 'ACTIVE' ? 'success' : 'neutral'}>
                         {agent.status}
                       </Badge>
                     </td>

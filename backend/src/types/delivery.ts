@@ -5,6 +5,8 @@ export type DeliveryStatus = 'PENDING' | 'DELIVERED';
 export interface IDelivery {
   _id?: Types.ObjectId | string;
   receiptNo: string;
+  receiptDate?: string; // Date printed on receipt (extracted via OCR)
+  receiptTime?: string; // Time printed on receipt (extracted via OCR)
   recipientName?: string; // Delivery recipient information for reporting
   userId?: Types.ObjectId | string; // Optional legacy reference
   deliveryPersonId: Types.ObjectId | string;
@@ -18,6 +20,8 @@ export interface IDelivery {
 
 export interface IDeliveryDocument extends Document {
   receiptNo: string;
+  receiptDate?: string;
+  receiptTime?: string;
   recipientName?: string;
   userId?: Types.ObjectId;
   deliveryPersonId: Types.ObjectId;

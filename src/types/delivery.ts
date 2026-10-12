@@ -3,6 +3,8 @@ export * from '../../backend/src/types/delivery';
 export interface DeliveryRecord {
   id: string;
   receiptNo: string;
+  receiptDate?: string; // Date printed on receipt (extracted via OCR)
+  receiptTime?: string; // Time printed on receipt (extracted via OCR)
   recipientName?: string;
   customer?: string; // UI alias for recipient name
   deliveryPerson?: string;
@@ -12,12 +14,13 @@ export interface DeliveryRecord {
   uploadedAt?: string | Date;
   status: 'Completed' | 'Pending' | 'DELIVERED';
   slipFileId?: string | null;
+  gridFSFileId?: string | null;
   slipImageUrl?: string;
 }
 
 export interface NewDeliveryInput {
-  receiptNo: string;
-  customer: string;
+  receiptNo?: string;
+  customer?: string;
   slipFile?: File | null;
   slipPreviewUrl?: string;
 }
@@ -33,6 +36,7 @@ export interface StorageStats {
   retentionDays: number;
   oldestRecordDate: string;
   newestRecordDate: string;
+  totalRecords?: number;
   eligibleForDeletionCount: number;
 }
 

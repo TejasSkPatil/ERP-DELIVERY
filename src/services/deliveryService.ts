@@ -13,9 +13,13 @@ export const deliveryService = {
   createDelivery: async (input: NewDeliveryInput): Promise<DeliveryRecord> => {
     try {
       const formData = new FormData();
-      formData.append('receiptNo', input.receiptNo);
-      formData.append('recipientName', input.customer);
-      formData.append('customerName', input.customer);
+      if (input.receiptNo && input.receiptNo.trim()) {
+        formData.append('receiptNo', input.receiptNo.trim());
+      }
+      if (input.customer && input.customer.trim()) {
+        formData.append('recipientName', input.customer.trim());
+        formData.append('customerName', input.customer.trim());
+      }
 
       if (input.slipFile) {
         formData.append('slip', input.slipFile);
@@ -24,46 +28,78 @@ export const deliveryService = {
         formData.append('slipImageUrl', input.slipPreviewUrl);
       }
 
-      const res = await apiClient.post<{ delivery: any }>('/deliveries', formData, {
+      const res = await apiClient.post<{ delivery?: any; receiptNo?: string; receiptDate?: string; receiptTime?: string; slipFileId?: string }>('/deliveries', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const d = res.data.delivery;
+      const d = res.data.delivery || res.data;
       return {
-        id: d.id || d._id,
-        receiptNo: d.receiptNo,
-        customer: d.recipientName || input.customer,
-        recipientName: d.recipientName || input.customer,
+        id: d.id || d._id || `del-${Date.now()}`,
+        receiptNo: d.receiptNo || res.data.receiptNo || '',
+        customer: d.recipientName || input.customer || 'Standard Recipient',
+        recipientName: d.recipientName || input.customer || 'Standard Recipient',
         deliveryPerson: 'Bhushan Lokhande (You)',
         deliveryPersonId: d.deliveryPersonId,
         deliveryDate: d.deliveryDate,
-        uploadedTime: new Date(d.uploadedAt).toLocaleTimeString('en-GB'),
-        uploadedAt: d.uploadedAt,
+        receiptDate: d.receiptDate || res.data.receiptDate || d.deliveryDate,
+        receiptTime: d.receiptTime || res.data.receiptTime || '',
+        uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : new Date().toLocaleTimeString('en-GB'),
+        uploadedAt: d.uploadedAt || new Date().toISOString(),
         status: d.status || 'DELIVERED',
-        slipFileId: d.slipFileId,
-        slipImageUrl: d.slipFileId ? `/api/delivery/slip/${d.slipFileId}` : '/img/img-01.jpg',
+        slipFileId: d.slipFileId || res.data.slipFileId,
+        slipImageUrl: (d.slipFileId || res.data.slipFileId) ? `/api/delivery/slip/${d.slipFileId || res.data.slipFileId}` : (input.slipPreviewUrl || '/img/img-01.jpg'),
       };
-    } catch {
-      // In-memory fallback if backend is offline
-      const fallbackRecord: DeliveryRecord = {
-        id: `del-${Date.now()}`,
-        receiptNo: input.receiptNo.replace(/^#/, ''),
-        deliveryPerson: 'Bhushan Lokhande (You)',
-        customer: input.customer,
-        recipientName: input.customer,
-        deliveryDate: '08 Oct 2026',
-        uploadedTime: '12:00:00 IST',
-        status: 'Completed',
-        slipImageUrl: input.slipPreviewUrl || '/img/img-01.jpg',
-      };
-      return fallbackRecord;
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      if (err?.message && !err?.response) {
+        // If server connection failed completely, allow fallback in demo mode
+        const fallbackRecord: DeliveryRecord = {
+          id: `del-${Date.now()}`,
+          receiptNo: input.receiptNo ? input.receiptNo.replace(/^#/, '') : `${Math.floor(1000 + Math.random() * 9000)}`,
+          deliveryPerson: 'Bhushan Lokhande (You)',
+          customer: input.customer || 'Standard Recipient',
+          recipientName: input.customer || 'Standard Recipient',
+          deliveryDate: '08 Oct 2026',
+          receiptDate: '08 Oct 2026',
+          receiptTime: '12:00',
+          uploadedTime: '12:00:00 IST',
+          status: 'Completed',
+          slipImageUrl: input.slipPreviewUrl || '/img/img-01.jpg',
+        };
+        return fallbackRecord;
+      }
+      throw err;
     }
   },
 
   // Get deliveries for today
   getTodayDeliveries: async (): Promise<{ totalDeliveries: number; uploadedSlips: number; deliveries: DeliveryRecord[] }> => {
     try {
-      const res = await apiClient.get('/delivery/today');
-      return res.data;
+      const res = await apiClient.get<{ totalDeliveries?: number; uploadedSlips?: number; deliveries?: any[] }>('/delivery/today');
+      const rawDeliveries = res.data.deliveries || [];
+      const mappedDeliveries: DeliveryRecord[] = rawDeliveries.map((d: any) => ({
+        id: d.id || d._id?.toString() || `del-${Date.now()}`,
+        receiptNo: d.receiptNo,
+        customer: d.recipientName || 'Standard Recipient',
+        recipientName: d.recipientName || 'Standard Recipient',
+        deliveryPerson: 'Bhushan Lokhande (You)',
+        deliveryPersonId: d.deliveryPersonId,
+        deliveryDate: d.deliveryDate,
+        receiptDate: d.receiptDate || d.deliveryDate,
+        receiptTime: d.receiptTime || '',
+        uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '',
+        uploadedAt: d.uploadedAt,
+        status: d.status || 'DELIVERED',
+        slipFileId: d.slipFileId?.toString(),
+        slipImageUrl: d.slipFileId ? `/api/delivery/slip/${d.slipFileId}` : (d.slipImageUrl || '/img/img-01.jpg'),
+      }));
+
+      return {
+        totalDeliveries: res.data.totalDeliveries ?? mappedDeliveries.length,
+        uploadedSlips: res.data.uploadedSlips ?? mappedDeliveries.filter((d) => d.slipFileId).length,
+        deliveries: mappedDeliveries,
+      };
     } catch {
       return {
         totalDeliveries: INITIAL_DELIVERIES.length,
@@ -71,6 +107,11 @@ export const deliveryService = {
         deliveries: INITIAL_DELIVERIES,
       };
     }
+  },
+
+  // Alias for backward-compatibility with other dashboard views
+  getMyDeliveries: async (): Promise<{ totalDeliveries: number; uploadedSlips: number; deliveries: DeliveryRecord[] }> => {
+    return deliveryService.getTodayDeliveries();
   },
 
   // Get all retained deliveries (Admin)

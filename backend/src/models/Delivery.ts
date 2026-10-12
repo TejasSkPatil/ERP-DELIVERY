@@ -25,6 +25,17 @@ const DeliverySchema = new Schema<IDeliveryDocument>(
       ref: 'User',
       index: true,
     },
+    receiptDate: {
+      type: String, // Date printed on receipt from OCR
+      trim: true,
+      default: '',
+      index: true,
+    },
+    receiptTime: {
+      type: String, // Time printed on receipt from OCR
+      trim: true,
+      default: '',
+    },
     deliveryDate: {
       type: String, // Business/calendar date e.g. "2026-10-08"
       required: [true, 'deliveryDate is required'],

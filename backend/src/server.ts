@@ -6,6 +6,7 @@ import env from './config/env';
 import connectDatabase from './config/database';
 import initRetentionJob from './jobs/retentionJob';
 import seedDatabaseIfEmpty from './utils/seeder';
+import { backfillHistoricalReceipts } from './services/receiptRegistry.service';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,7 @@ export async function startServer() {
   // Connect database & seed initial records
   await connectDatabase();
   await seedDatabaseIfEmpty();
+  await backfillHistoricalReceipts();
 
   // Initialize background 32-day retention cron job
   initRetentionJob();

@@ -12,3 +12,106 @@ FGKJHSNBVIKD
 
 
 give me proper command to push this projevt to github
+
+
+
+
+Delivery person uploads slip
+Capture or select an image in the existing application
+
+Phase 1 · Foundation
+Existing upload infrastructure
+Authentication · Image validation · Express API · MongoDB GridFS
+
+Phase 2 · OCR
+Read the delivery slip
+Tesseract.js extracts receipt number, printed date, time and confidence
+
+Phase 3 · Duplicate prevention
+Check permanent records
+Normalized receipt number → permanent registry → SHA-256 → perceptual similarity check
+
+Is the upload acceptable?
+Yes
+Save image to GridFS and create delivery record
+
+
+No / Review
+Reject duplicates or route uncertain matches for review
+
+
+
+
+Verified delivery tracking workflow
+Only successfully accepted deliveries are recorded; permanent duplicate history is retained.on 
+
+
+
+
+Update the existing Delivery Boy dashboard UI shown in the reference screenshot to support automatic receipt OCR.
+
+### Form changes
+- Remove the manual `Receipt No.` input.
+- Remove the `Customer / Order Detail` input.
+- Keep a single receipt-image upload/camera-capture area.
+- Display an image preview after selection.
+- Change the submit button to `Upload & Scan Receipt`.
+- Display uploading, OCR processing, success, and error states.
+
+### OCR and backend integration
+When the delivery person uploads an image, use the existing OCR service to extract:
+- `receiptNo`: receipt number printed on the receipt.
+- `receiptDate`: date printed on the receipt.
+- `receiptTime`: time printed on the receipt.
+
+Save the original image to MongoDB GridFS and save its reference as `slipFileId`. Persist all four fields in the delivery record. Do not substitute upload time for receipt time or upload date for receipt date.
+
+### Table changes
+Update the existing completed-deliveries table to display exactly these columns:
+1. Receipt No.
+2. Receipt Date.
+3. Receipt Time.
+4. Receipt Image — with a `View Slip` action.
+
+Remove the existing Customer, Upload Time, and Status columns from this table unless they are required elsewhere in the application.
+
+After a successful upload and database save, update the table automatically without a page reload. Fetch existing records from the backend when the dashboard loads.
+
+### Validation and error handling
+- Preserve permanent duplicate-receipt prevention.
+- Do not add a record when required OCR values are missing or unreliable.
+- Show understandable error feedback and allow retry or an appropriate correction process.
+- Clean up orphaned GridFS images if database persistence fails.
+
+### Design requirements
+- Preserve the existing Level Delivery branding, red-and-white colors, navigation, background, and overall visual style.
+- Make the upload form compact and responsive.
+- Keep the current 32-day delivery-record retention policy.
+- Reuse existing backend endpoints, services, and components wherever possible.
+- Inspect the actual code before editing. Do not create duplicate implementations or unrelated features.
+- Run relevant tests and TypeScript checks, and report the actual results.
+
+
+
+
+
+### Fix OCR Receipt Number Extraction
+
+The uploaded receipt is readable, but the application returns:
+
+"Scan Failed: Receipt number could not be read from the delivery slip."
+
+Inspect the existing OCR service, receipt parser, and upload controller before modifying anything.
+
+1. Do not rely exclusively on labels such as `Receipt No`, `Receipt Number`, or `Order Number`.
+2. Support receipts where the receipt number is printed as a standalone number near the top, such as `7` above `Sales Receipt`.
+3. Preprocess images for OCR using rotation correction, grayscale, contrast enhancement, and appropriate resizing.
+4. Use Tesseract OCR output and positional information to identify candidate receipt numbers. Do not assume every standalone number is a receipt number.
+5. Extract the printed receipt date into `receiptDate` and the actual receipt time into `receiptTime`. Do not confuse collection time, due time, or upload time with the receipt time.
+6. Validate extracted values before saving. If multiple candidates remain ambiguous, request manual review rather than silently choosing the wrong number.
+7. Add automated tests using this receipt layout, including the standalone receipt number `7`, date `07/10/2026`, and time `11:39`.
+8. Return useful diagnostic information in development logs, such as OCR text and candidate values, but do not expose sensitive debug details to production users.
+9. Preserve duplicate receipt-number prevention and existing GridFS image storage.
+10. Run the relevant tests and report the actual results.
+
+Do not merely weaken validation or accept arbitrary numbers to make the error disappear.

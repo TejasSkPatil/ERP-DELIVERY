@@ -59,7 +59,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) =
           Single-Source MongoDB GridFS Proof Slip:
         </span>
         <ImageContainer
-          src={delivery.slipImageUrl}
+          src={delivery.slipImageUrl || '/img/img-01.jpg'}
           alt={`Proof slip for Receipt #${delivery.receiptNo}`}
           caption={`Stored natively in MongoDB GridFS bucket \u2022 Receipt #${delivery.receiptNo}`}
         />
