@@ -14,7 +14,7 @@ const projectRoot = path.resolve(__dirname, '../../');
 
 export async function startServer() {
   const app = createApp();
-  const PORT = Number(env.PORT) || 3000;
+  const PORT = Number(env.PORT) || 3001;
   const HOST = '0.0.0.0';
 
   // Static assets from public folder
@@ -28,27 +28,34 @@ export async function startServer() {
   // Initialize background 32-day retention cron job
   initRetentionJob();
 
-  // Vite development integration or static dist serving
+  // Vite development integration or static dist serving (skipped in standalone backend mode)
   const isProduction = env.NODE_ENV === 'production';
+  const isStandaloneBackend = process.env.STANDALONE_BACKEND === 'true';
 
-  if (!isProduction) {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      root: projectRoot,
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(projectRoot, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  if (!isStandaloneBackend) {
+    if (!isProduction) {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        root: projectRoot,
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(projectRoot, 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
   const server = app.listen(PORT, HOST, () => {
-    console.log(`[ERP-DELIVERY Backend] Server listening at http://${HOST}:${PORT}`);
+    console.log(
+      `[ERP-DELIVERY Backend] Server listening at http://${HOST}:${PORT}${
+        isStandaloneBackend ? ' (Standalone API Mode)' : ''
+      }`
+    );
   });
 
   return server;

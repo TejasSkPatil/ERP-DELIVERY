@@ -16,5 +16,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "server", "server.ts"]
+  "include": ["src", "backend", "api", "server", "server.ts"]
 }

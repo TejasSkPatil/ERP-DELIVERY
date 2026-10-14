@@ -6,7 +6,7 @@ dotenv.config();
 
 // Define strict environment schema with validation
 const environmentSchema = z.object({
-  PORT: z.string().default('3000'),
+  PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   MONGODB_URI: z
     .string({
