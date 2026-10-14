@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import createApp from './app';
@@ -14,11 +15,15 @@ const projectRoot = path.resolve(__dirname, '../../');
 
 export async function startServer() {
   const app = createApp();
-  const PORT = Number(env.PORT) || 3001;
+  // Ensure server listens on process.env.PORT (required for Render) and binds to 0.0.0.0
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : (Number(env.PORT) || 3001);
   const HOST = '0.0.0.0';
 
-  // Static assets from public folder
-  app.use(express.static(path.join(projectRoot, 'public')));
+  // Static assets from public folder if present
+  const publicPath = path.join(projectRoot, 'public');
+  if (fs.existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+  }
 
   // Connect database & seed initial records
   await connectDatabase();
@@ -28,9 +33,12 @@ export async function startServer() {
   // Initialize background 32-day retention cron job
   initRetentionJob();
 
-  // Vite development integration or static dist serving (skipped in standalone backend mode)
+  // Standalone backend mode detection:
+  // Render automatically sets process.env.RENDER='true'.
+  // Also checks explicit STANDALONE_BACKEND flag.
   const isProduction = env.NODE_ENV === 'production';
-  const isStandaloneBackend = process.env.STANDALONE_BACKEND === 'true';
+  const isStandaloneBackend =
+    process.env.STANDALONE_BACKEND === 'true' || process.env.RENDER === 'true';
 
   if (!isStandaloneBackend) {
     if (!isProduction) {
@@ -43,10 +51,16 @@ export async function startServer() {
       app.use(vite.middlewares);
     } else {
       const distPath = path.join(projectRoot, 'dist');
-      app.use(express.static(distPath));
-      app.get('*', (_req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
+      if (fs.existsSync(path.join(distPath, 'index.html'))) {
+        app.use(express.static(distPath));
+        app.get('*', (_req, res) => {
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
+      } else {
+        console.log(
+          '[ERP-DELIVERY Backend] Frontend dist directory not found; operating in standalone API mode.'
+        );
+      }
     }
   }
 

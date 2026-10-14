@@ -863,3 +863,31 @@ Give the exact deployment and production smoke-test steps.
 Do not claim the production problem is fixed until the deployed signup and login endpoints have been tested.
 
 Important: Preserve existing MongoDB data, users, delivery records, GridFS images, OCR processing, receipt uniqueness, and the 32-day retention system. Do not delete collections, reset the database, or rewrite the project unnecessarily.
+
+
+
+
+Prepare ERP-DELIVERY for hosting its backend on Render while keeping the frontend on Vercel.
+
+Project root: `/Applications/Agents/ERP-DELIVERY`
+
+Known setup:
+- Root `package.json` exists.
+- `backend/` does not have its own `package.json`.
+- Root `server.ts` starts the Express application.
+- Root scripts include `dev:backend`, `dev:frontend`, `build`, and `start`.
+- MongoDB Atlas database: `erp_delivery`.
+- Existing environment settings include `MONGODB_URI`, `JWT_SECRET`, `APP_TIMEZONE`, `RETENTION_DAYS`, and `MAX_UPLOAD_SIZE`.
+- The backend uses MongoDB GridFS, OCR, JWT authentication, and a daily 32-day retention cleanup job.
+
+Tasks:
+1. Inspect `server.ts`, root `package.json`, `src`/`backend` structure, environment validation, API routes, and Vercel configuration.
+2. Confirm whether `STANDALONE_BACKEND=true npm start` starts only the Express API. If not, implement the smallest correct production startup configuration.
+3. Ensure the server listens on `process.env.PORT` and binds to `0.0.0.0`. Do not hardcode port 3000 or 3001 in the production server.
+4. Confirm all runtime dependencies are declared in the root `package.json` and the backend can start without development-only tools.
+5. Confirm that the health endpoint, API routing, CORS, and frontend API base URL work when the backend is on Render and the frontend is on Vercel.
+6. Document the exact Render build/start commands and required environment variable names without exposing secret values.
+7. Check how the existing daily cleanup job will run reliably when the web service is idle. Do not silently remove the retention job or accidentally run duplicate cleanup processes.
+8. Run tests and the production build. Preserve existing MongoDB data, users, GridFS images, OCR, receipt uniqueness, authentication, and retention behavior.
+
+Do not deploy with guessed API paths or URLs. Report the files changed, the verified startup command, and the exact manual Render and Vercel configuration steps.

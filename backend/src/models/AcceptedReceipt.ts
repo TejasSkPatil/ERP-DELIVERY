@@ -34,10 +34,8 @@ const AcceptedReceiptSchema = new Schema<IAcceptedReceiptDocument>(
     normalizedReceiptNo: {
       type: String,
       required: [true, 'normalizedReceiptNo is required'],
-      unique: true,
       trim: true,
       uppercase: true,
-      index: true,
     },
     originalReceiptNo: {
       type: String,
@@ -60,7 +58,6 @@ const AcceptedReceiptSchema = new Schema<IAcceptedReceiptDocument>(
       type: String,
       required: [true, 'imageSha256 is required'],
       trim: true,
-      index: true,
     },
     perceptualHash: {
       type: String,
@@ -107,7 +104,7 @@ const AcceptedReceiptSchema = new Schema<IAcceptedReceiptDocument>(
 
 // Enforce unique index at MongoDB engine level for both normalizedReceiptNo and imageSha256
 AcceptedReceiptSchema.index({ normalizedReceiptNo: 1 }, { unique: true });
-AcceptedReceiptSchema.index({ imageSha256: 1 }, { unique: true });
+AcceptedReceiptSchema.index({ imageSha256: 1 }, { unique: true, name: 'uniq_imageSha256', sparse: true });
 
 export const AcceptedReceipt: Model<IAcceptedReceiptDocument> =
   mongoose.models.AcceptedReceipt ||

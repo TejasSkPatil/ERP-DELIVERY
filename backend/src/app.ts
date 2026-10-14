@@ -65,6 +65,19 @@ export const createApp = (): Application => {
       timestamp: new Date().toISOString(),
     });
   };
+  app.get('/', (_req: Request, res: Response) => {
+    return res.status(200).json({
+      success: true,
+      service: 'ERP-DELIVERY Backend API',
+      status: 'healthy',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/health',
+        api: '/api',
+      },
+    });
+  });
   app.get('/health', healthHandler);
   app.get('/api/health', healthHandler);
 
