@@ -7,8 +7,6 @@ import {
   isLikelyModifiedCopy,
   findSimilarReceipts,
   checkPerceptualDuplicate,
-  DEFAULT_HAMMING_THRESHOLD,
-  HASH_TOTAL_BITS,
 } from './perceptual-hash.service';
 import { AcceptedReceipt } from '../models/AcceptedReceipt';
 import { InMemoryDatabase } from '../config/database';

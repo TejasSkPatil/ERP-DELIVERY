@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import 'multer';
-import { UserRole, TokenPayload } from './user';
+import { TokenPayload } from './user';
 
 export * from './user';
 

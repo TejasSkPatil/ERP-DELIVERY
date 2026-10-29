@@ -278,4 +278,63 @@ describe('Auth Controller - Admin & User Authentication States', () => {
       );
     });
   });
+
+  describe('Role Restriction & Privilege Security', () => {
+    it('prevents public self-assignment of ADMIN role during registration with 403', async () => {
+      mockReq = {
+        body: {
+          username: 'hacker_admin',
+          phone: '+91 9999999999',
+          password: 'password123',
+          role: 'ADMIN',
+        },
+        headers: {},
+        ip: '127.0.0.1',
+      };
+
+      await register(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: expect.stringContaining('Self-assignment of ADMIN role during public registration is strictly prohibited'),
+        })
+      );
+    });
+
+    it('rejects login attempts from legacy customer accounts with 403', async () => {
+      mockReq = {
+        body: {
+          username: 'old_customer',
+          password: 'password123',
+        },
+        headers: {},
+        ip: '127.0.0.1',
+      };
+
+      const mockCustomerUser = {
+        _id: 'cust-123',
+        name: 'Old Customer',
+        username: 'old_customer',
+        role: 'USER',
+        password: 'hashed-password',
+      };
+
+      (User.findOne as any).mockReturnValue({
+        select: vi.fn().mockResolvedValue(mockCustomerUser),
+      });
+
+      await login(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: expect.stringContaining('Customer accounts have been retired'),
+        })
+      );
+    });
+  });
 });
+

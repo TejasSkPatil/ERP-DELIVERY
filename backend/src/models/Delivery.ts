@@ -36,6 +36,12 @@ const DeliverySchema = new Schema<IDeliveryDocument>(
       trim: true,
       default: '',
     },
+    orderType: {
+      type: String, // Order type label (strictly DELIVERY)
+      trim: true,
+      default: 'DELIVERY',
+      index: true,
+    },
     deliveryDate: {
       type: String, // Business/calendar date e.g. "2026-10-08"
       required: [true, 'deliveryDate is required'],

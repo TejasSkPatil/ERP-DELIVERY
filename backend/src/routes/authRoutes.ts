@@ -6,7 +6,7 @@ import {
   getMe,
   obsoleteCustomerEndpoint,
 } from '../controllers/authController';
-import { authenticate, requireAdmin } from '../middleware/authMiddleware';
+import { authenticate } from '../middleware/authMiddleware';
 
 const router = Router();
 

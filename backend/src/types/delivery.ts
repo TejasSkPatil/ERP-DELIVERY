@@ -7,6 +7,7 @@ export interface IDelivery {
   receiptNo: string;
   receiptDate?: string; // Date printed on receipt (extracted via OCR)
   receiptTime?: string; // Time printed on receipt (extracted via OCR)
+  orderType?: string; // Order type label (strictly DELIVERY)
   recipientName?: string; // Delivery recipient information for reporting
   userId?: Types.ObjectId | string; // Optional legacy reference
   deliveryPersonId: Types.ObjectId | string;
@@ -22,6 +23,7 @@ export interface IDeliveryDocument extends Document {
   receiptNo: string;
   receiptDate?: string;
   receiptTime?: string;
+  orderType?: string;
   recipientName?: string;
   userId?: Types.ObjectId;
   deliveryPersonId: Types.ObjectId;

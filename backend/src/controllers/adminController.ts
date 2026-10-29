@@ -1,5 +1,4 @@
 import { Response } from 'express';
-import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../types';
 import { User } from '../models/User';
 import { Delivery } from '../models/Delivery';
@@ -11,7 +10,7 @@ import { getKolkataDateInfo } from '../utils/timeZone';
  * Returns operational metrics for all active delivery personnel.
  * Strictly restricted to ADMIN role.
  */
-export const getDeliveryPersonsList = async (req: AuthenticatedRequest, res: Response) => {
+export const getDeliveryPersonsList = async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const today = getKolkataDateInfo().deliveryDate;
 
@@ -128,7 +127,7 @@ export const getAllRetainedDeliveries = async (req: AuthenticatedRequest, res: R
  * GET /api/admin/metrics
  * Returns comprehensive aggregate stats for the admin overview.
  */
-export const getAdminMetrics = async (req: AuthenticatedRequest, res: Response) => {
+export const getAdminMetrics = async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const today = getKolkataDateInfo().deliveryDate;
 
@@ -167,7 +166,7 @@ export const getAdminMetrics = async (req: AuthenticatedRequest, res: Response) 
  * Returns recent authentication and system activities (Login, Logout, Signup).
  * Restricted to ADMIN role.
  */
-export const getActivities = async (req: AuthenticatedRequest, res: Response) => {
+export const getActivities = async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const activities = await Activity.find()
       .sort({ timestamp: -1 })

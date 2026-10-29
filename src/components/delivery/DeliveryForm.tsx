@@ -101,7 +101,11 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     } catch (err: any) {
       clearTimeout(timer);
       setSubmissionState('error');
-      setErrorMessage(err?.message || 'Failed to scan and save receipt. Please try again.');
+      if (err?.code === 'COLLECTION_REJECTED' || (err?.message && /COLLECTION/i.test(err.message))) {
+        setErrorMessage("'COLLECTION' slips :Invalid slip");
+      } else {
+        setErrorMessage(err?.message || 'Failed to scan and save receipt. Please try again.');
+      }
     }
   };
 
@@ -149,6 +153,9 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       </span>
                       <span>
                         <strong>Receipt Time:</strong> <code>{completedRecord.receiptTime || 'Extracted'}</code>
+                      </span>
+                      <span>
+                        <strong>Delivery Type:</strong> <span className="badge badge-success" style={{ backgroundColor: '#10B981', fontSize: '0.85rem' }}>{completedRecord.orderType || 'DELIVERY'}</span>
                       </span>
                     </div>
                   </Alert>

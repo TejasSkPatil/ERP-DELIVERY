@@ -40,6 +40,16 @@ export const DeliveryPersonTable: React.FC<DeliveryPersonTableProps> = ({
       ),
     },
     {
+      key: 'orderType',
+      header: 'Order Type',
+      align: 'center',
+      render: (row) => (
+        <Badge variant="success">
+          {row.orderType || 'DELIVERY'}
+        </Badge>
+      ),
+    },
+    {
       key: 'slipImageUrl',
       header: 'Receipt Image',
       align: 'center',

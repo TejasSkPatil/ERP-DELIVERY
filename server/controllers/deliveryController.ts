@@ -144,7 +144,7 @@ export const createDelivery = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getTodayDeliveries = async (req: AuthRequest, res: Response) => {
+export const getTodayDeliveries = async (_req: AuthRequest, res: Response) => {
   try {
     const { deliveryDate } = getKolkataDateInfo(new Date());
 
@@ -233,7 +233,7 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllDeliveries = async (req: AuthRequest, res: Response) => {
+export const getAllDeliveries = async (_req: AuthRequest, res: Response) => {
   try {
     let deliveries: any[] = [];
 
@@ -253,7 +253,7 @@ export const getAllDeliveries = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getStorageStats = async (req: AuthRequest, res: Response) => {
+export const getStorageStats = async (_req: AuthRequest, res: Response) => {
   try {
     const cutoffDate = get32DayCutoffDate();
     let allDeliveries: any[] = [];
@@ -287,7 +287,7 @@ export const getStorageStats = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const cleanupOlderThan32Days = async (req: AuthRequest, res: Response) => {
+export const cleanupOlderThan32Days = async (_req: AuthRequest, res: Response) => {
   try {
     const cutoffDate = get32DayCutoffDate();
     let deletedCount = 0;

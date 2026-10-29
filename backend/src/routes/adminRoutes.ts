@@ -36,11 +36,13 @@ router.get('/delivery-persons', getDeliveryPersonsList);
  */
 router.get('/deliveries', getAllRetainedDeliveries);
 
+import { AuthenticatedRequest } from '../types';
+
 /**
  * GET /api/admin/dashboard
  * Ping / status verification route.
  */
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', (req: AuthenticatedRequest, res) => {
   return res.status(200).json({
     success: true,
     message: 'Welcome to the Admin Dashboard',

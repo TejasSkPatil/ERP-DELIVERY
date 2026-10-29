@@ -10,7 +10,6 @@ import {
   authenticate,
   requireDeliveryPerson,
   requireAdmin,
-  requireStaff,
 } from '../middleware/authMiddleware';
 import { uploadSlipMiddleware } from '../middleware/uploadMiddleware';
 

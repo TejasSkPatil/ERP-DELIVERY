@@ -28,7 +28,7 @@ export const deliveryService = {
         formData.append('slipImageUrl', input.slipPreviewUrl);
       }
 
-      const res = await apiClient.post<{ delivery?: any; receiptNo?: string; receiptDate?: string; receiptTime?: string; slipFileId?: string }>('/deliveries', formData, {
+      const res = await apiClient.post<{ delivery?: any; receiptNo?: string; receiptDate?: string; receiptTime?: string; orderType?: string; slipFileId?: string; ocr?: any }>('/deliveries', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const d = res.data.delivery || res.data;
@@ -42,6 +42,7 @@ export const deliveryService = {
         deliveryDate: d.deliveryDate,
         receiptDate: d.receiptDate || res.data.receiptDate || d.deliveryDate,
         receiptTime: d.receiptTime || res.data.receiptTime || '',
+        orderType: d.orderType || res.data.orderType || res.data.ocr?.orderType || 'DELIVERY',
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : new Date().toLocaleTimeString('en-GB'),
         uploadedAt: d.uploadedAt || new Date().toISOString(),
         status: d.status || 'DELIVERED',
@@ -49,8 +50,14 @@ export const deliveryService = {
         slipImageUrl: (d.slipFileId || res.data.slipFileId) ? `/api/delivery/slip/${d.slipFileId || res.data.slipFileId}` : (input.slipPreviewUrl || '/img/img-01.jpg'),
       };
     } catch (err: any) {
-      if (err?.response?.data?.message) {
-        throw new Error(err.response.data.message);
+      if (err?.response?.data) {
+        const errorMsg = err.response.data.message || err.response.data.error;
+        if (errorMsg) {
+          const apiErr: any = new Error(errorMsg);
+          apiErr.code = err.response.data.code;
+          apiErr.ocr = err.response.data.ocr;
+          throw apiErr;
+        }
       }
       if (err?.message && !err?.response) {
         // If server connection failed completely, allow fallback in demo mode
@@ -63,6 +70,7 @@ export const deliveryService = {
           deliveryDate: '08 Oct 2026',
           receiptDate: '08 Oct 2026',
           receiptTime: '12:00',
+          orderType: 'DELIVERY',
           uploadedTime: '12:00:00 IST',
           status: 'Completed',
           slipImageUrl: input.slipPreviewUrl || '/img/img-01.jpg',
@@ -88,6 +96,7 @@ export const deliveryService = {
         deliveryDate: d.deliveryDate,
         receiptDate: d.receiptDate || d.deliveryDate,
         receiptTime: d.receiptTime || '',
+        orderType: d.orderType || 'DELIVERY',
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '',
         uploadedAt: d.uploadedAt,
         status: d.status || 'DELIVERED',

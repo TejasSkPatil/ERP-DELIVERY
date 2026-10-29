@@ -34,6 +34,14 @@ const getJwtSecret = (): string => {
  */
 export const register = async (req: Request, res: Response) => {
   try {
+    // Explicitly reject any attempt by public users to assign themselves ADMIN privileges
+    if (req.body.role === 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Self-assignment of ADMIN role during public registration is strictly prohibited.',
+      });
+    }
+
     const parseResult = registerSchema.safeParse(req.body);
 
     if (!parseResult.success) {

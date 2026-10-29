@@ -32,7 +32,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
         onTabChange={onTabChange}
       />
       {children}
-      <Footer companyName="ERP-DELIVERY &bull; Level Template" />
+      <Footer systemTitle="ERP-DELIVERY &bull; Level Template" />
     </div>
   );
 };

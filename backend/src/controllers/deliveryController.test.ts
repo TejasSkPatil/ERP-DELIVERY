@@ -781,6 +781,386 @@ describe('Delivery Controller - createDeliveryProof & OCR Integration', () => {
       );
       expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
     });
+
+    it('succeeds with 201 for a valid DELIVERY template receipt', async () => {
+      delete mockReq.body.receiptNo;
+      const mockUserId = new mongoose.Types.ObjectId();
+      const mockSlipId = new mongoose.Types.ObjectId();
+      mockReq.user = { userId: mockUserId.toString(), role: 'DELIVERY_PERSON' };
+
+      const validReceiptText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVERY
+        Items: 1
+        Margherita Basilico £15.70
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: validReceiptText,
+        confidence: 95,
+      });
+
+      const mockSaved = {
+        _id: new mongoose.Types.ObjectId(),
+        orderId: 'ORD-AUTO-DELIV',
+        deliveryPersonId: mockUserId,
+        receiptNo: '62',
+        receiptDate: '2026-10-16',
+        receiptTime: '00:13',
+        status: 'DELIVERED',
+        slipFileId: mockSlipId.toString(),
+      };
+      vi.mocked(gridfsService.uploadSlip).mockResolvedValueOnce(mockSlipId as any);
+      vi.mocked(Delivery.create).mockResolvedValueOnce(mockSaved as any);
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(201);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          receiptNo: '62',
+          receiptDate: '2026-10-16',
+          receiptTime: '00:13',
+        })
+      );
+    });
+
+    it('returns 422 with COLLECTION_REJECTED when receipt order type is COLLECTION', async () => {
+      delete mockReq.body.receiptNo;
+
+      const collectionText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        COLLECTION
+        Items: 1
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: collectionText,
+        confidence: 92,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'COLLECTION_REJECTED',
+          message: expect.stringContaining("'COLLECTION' slips :Invalid slip"),
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+    });
+
+    it('returns 422 with WEB_ORDER_INSUFFICIENT when receipt contains WEB ORDER without DELIVERY', async () => {
+      delete mockReq.body.receiptNo;
+
+      const webOrderText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        Web Order
+        Items: 1
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: webOrderText,
+        confidence: 90,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'WEB_ORDER_INSUFFICIENT',
+          message: expect.stringContaining("Found 'WEB ORDER', which alone is not proof of delivery"),
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+    });
+
+    it('returns 422 with ORDER_TYPE_AMBIGUOUS when order-type label is partial (DELIVER)', async () => {
+      delete mockReq.body.receiptNo;
+
+      const partialDeliverText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVER
+        Items: 1
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: partialDeliverText,
+        confidence: 90,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'ORDER_TYPE_AMBIGUOUS',
+          message: expect.stringContaining("Partial match 'DELIVER' detected"),
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+    });
+
+    it('returns 422 with DATE_UNREADABLE when target date region is unreadable and dates in notes are ignored', async () => {
+      delete mockReq.body.receiptNo;
+
+      const unreadableDateText = `
+        62
+        Sales Receipt
+        Basilico
+        00:13
+        DELIVERY
+        Items: 1
+        Notes: Delivered on 25/12/2026
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: unreadableDateText,
+        confidence: 90,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'DATE_UNREADABLE',
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Fixed-Template OCR Upload Workflow Integration', () => {
+    it('successfully processes, uploads to GridFS once, and creates Delivery with extracted receiptNo, receiptDate, receiptTime, and orderType', async () => {
+      delete mockReq.body.receiptNo;
+      const mockUserId = new mongoose.Types.ObjectId();
+      const mockGridFsId = new mongoose.Types.ObjectId();
+      mockReq.user = { userId: mockUserId.toString(), role: 'DELIVERY_PERSON' };
+
+      const validSlipText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVERY
+        Items: 1
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: validSlipText,
+        confidence: 96,
+      });
+
+      vi.mocked(gridfsService.uploadSlip).mockResolvedValueOnce(mockGridFsId as any);
+
+      const createdDeliveryDoc = {
+        _id: new mongoose.Types.ObjectId(),
+        receiptNo: '62',
+        receiptDate: '2026-10-16',
+        receiptTime: '00:13',
+        orderType: 'DELIVERY',
+        recipientName: 'Standard Recipient',
+        deliveryPersonId: mockUserId,
+        deliveryDate: '2026-10-16',
+        uploadedAt: new Date(),
+        slipFileId: mockGridFsId,
+        status: 'DELIVERED',
+      };
+      vi.mocked(Delivery.create).mockResolvedValueOnce(createdDeliveryDoc as any);
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      // 1. GridFS uploaded exactly once
+      expect(gridfsService.uploadSlip).toHaveBeenCalledTimes(1);
+
+      // 2. Delivery created with extracted fields
+      expect(Delivery.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          receiptNo: '62',
+          receiptDate: '2026-10-16',
+          receiptTime: '00:13',
+          orderType: 'DELIVERY',
+          slipFileId: mockGridFsId,
+          status: 'DELIVERED',
+        })
+      );
+
+      // 3. Structured extracted values returned to frontend with 201 Created
+      expect(statusMock).toHaveBeenCalledWith(201);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          receiptNo: '62',
+          receiptDate: '2026-10-16',
+          receiptTime: '00:13',
+          orderType: 'DELIVERY',
+          slipFileId: mockGridFsId.toString(),
+          ocr: expect.objectContaining({
+            extractedReceiptNo: '62',
+            printedDeliveryDate: '2026-10-16',
+            printedDeliveryTime: '00:13',
+            orderType: 'DELIVERY',
+            isVerified: true,
+          }),
+          delivery: expect.objectContaining({
+            receiptNo: '62',
+            receiptDate: '2026-10-16',
+            receiptTime: '00:13',
+            orderType: 'DELIVERY',
+            slipFileId: mockGridFsId.toString(),
+          }),
+        })
+      );
+    });
+
+    it('rejects upload when receipt number is missing above Sales Receipt and does not store in GridFS', async () => {
+      delete mockReq.body.receiptNo;
+
+      const missingReceiptNoText = `
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVERY
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: missingReceiptNoText,
+        confidence: 90,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'RECEIPT_NUMBER_UNREADABLE',
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+      expect(Delivery.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects upload when printed time is unreadable and does not store in GridFS', async () => {
+      delete mockReq.body.receiptNo;
+
+      const missingTimeText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        DELIVERY
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: missingTimeText,
+        confidence: 90,
+      });
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(422);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          code: 'TIME_UNREADABLE',
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+      expect(Delivery.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate image SHA-256 before GridFS upload or Delivery creation', async () => {
+      delete mockReq.body.receiptNo;
+
+      const validSlipText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVERY
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: validSlipText,
+        confidence: 95,
+      });
+
+      // Existing image found in AcceptedReceipt
+      vi.mocked(AcceptedReceipt.findOne).mockResolvedValueOnce({
+        _id: new mongoose.Types.ObjectId(),
+        imageSha256: 'mock-sha',
+      } as any);
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      expect(statusMock).toHaveBeenCalledWith(409);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: expect.stringContaining('already been uploaded'),
+        })
+      );
+      expect(gridfsService.uploadSlip).not.toHaveBeenCalled();
+      expect(Delivery.create).not.toHaveBeenCalled();
+    });
+
+    it('cleans up uploaded GridFS file if Delivery creation fails, leaving no orphaned files', async () => {
+      delete mockReq.body.receiptNo;
+      const mockUserId = new mongoose.Types.ObjectId();
+      const mockGridFsId = new mongoose.Types.ObjectId();
+      mockReq.user = { userId: mockUserId.toString(), role: 'DELIVERY_PERSON' };
+
+      const validSlipText = `
+        62
+        Sales Receipt
+        Basilico
+        16/10/2026
+        00:13
+        DELIVERY
+      `;
+
+      vi.mocked(ocrService.extractTextFromSlip).mockResolvedValueOnce({
+        text: validSlipText,
+        confidence: 95,
+      });
+
+      vi.mocked(gridfsService.uploadSlip).mockResolvedValueOnce(mockGridFsId as any);
+      vi.mocked(Delivery.create).mockRejectedValueOnce(new Error('Mongo connection drop'));
+
+      await createDeliveryProof(mockReq, mockRes);
+
+      // Cleaned up the file that was uploaded to GridFS
+      expect(gridfsService.deleteSlip).toHaveBeenCalledWith(mockGridFsId.toString());
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
   });
 });
 

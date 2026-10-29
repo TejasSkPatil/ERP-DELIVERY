@@ -76,33 +76,6 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
 
         {/* Modal Body */}
         <div className="tm-pad" style={{ padding: '24px' }}>
-          {/* Metadata Row */}
-          <div
-            className="row mb-3"
-            style={{
-              background: '#F4F4F4',
-              margin: '0 0 20px 0',
-              padding: '12px 15px',
-              borderLeft: '4px solid #ee5057',
-            }}
-          >
-            <div className="col-sm-6 mb-2 mb-sm-0">
-              <span className="text-uppercase text-muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                Delivery Person:
-              </span>
-              <div style={{ fontWeight: 600, color: '#1f3646' }}>
-                <i className="fa fa-user mr-1 tm-color-primary"></i> {delivery.deliveryPerson}
-              </div>
-            </div>
-            <div className="col-sm-6">
-              <span className="text-uppercase text-muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                Customer / Order:
-              </span>
-              <div style={{ fontWeight: 600, color: '#1f3646' }}>
-                <i className="fa fa-tag mr-1 tm-color-primary"></i> {delivery.customer}
-              </div>
-            </div>
-          </div>
 
           {/* Slip Image Display */}
           <div className="text-center mb-3">
@@ -110,7 +83,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
               className="d-block text-uppercase text-muted mb-2 text-left"
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              MongoDB Stored Delivery Proof Slip:
+              MongoDB GridFS Stored Delivery Proof Slip:
             </span>
             <div
               style={{
@@ -131,7 +104,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
               />
             </div>
             <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.75rem', textAlign: 'left' }}>
-              <i className="fa fa-database mr-1 tm-color-primary"></i> Stored directly in MongoDB document (Receipt #{delivery.receiptNo})
+              <i className="fa fa-database mr-1 tm-color-primary"></i> Stored securely in MongoDB GridFS bucket (Receipt #{delivery.receiptNo})
             </p>
           </div>
 

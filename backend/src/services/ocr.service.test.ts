@@ -128,4 +128,124 @@ describe('OCR Service', () => {
       expect(parsed.needsReview).toBe(false);
     }, 20000);
   });
+
+  describe('Robust Fixed-Template Recognition & Deliverables', () => {
+    // 1. Reference Image: Real thermal receipt upload with edge artifacts
+    it('achieves 100% exact-field accuracy on the supplied reference receipt image', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const fixturePath = path.resolve(__dirname, '../test/fixtures/reference-receipt.png');
+      const imageBuffer = fs.readFileSync(fixturePath);
+
+      const ocrResult = await extractTextFromSlip(imageBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBe('62');
+      expect(parsed.receiptDate).toBe('16/10/2026');
+      expect(parsed.receiptTime).toBe('00:13');
+      expect(parsed.orderType).toBe('DELIVERY');
+      expect(parsed.printedDeliveryDate).toBe('2026-10-16');
+      expect(parsed.printedDeliveryTime).toBe('00:13');
+      expect(parsed.needsReview).toBe(false);
+    }, 25000);
+
+    // 2. Clear Synthetic Template Receipt
+    it('accurately recognizes a clear fixed-template receipt', async () => {
+      const svg = `
+        <svg width="576" height="1024" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100%" height="100%" fill="white"/>
+          <text x="288" y="200" font-family="Arial" font-size="32" font-weight="bold" text-anchor="middle" fill="black">11</text>
+          <text x="288" y="260" font-family="Arial" font-size="28" font-weight="bold" text-anchor="middle" fill="black">Sales Receipt</text>
+          <text x="50" y="380" font-family="Arial" font-size="22" fill="black">16/10/2026</text>
+          <text x="360" y="380" font-family="Arial" font-size="22" fill="black">00:13</text>
+          <text x="360" y="420" font-family="Arial" font-size="24" font-weight="bold" fill="black">DELIVERY</text>
+          <text x="50" y="480" font-family="Arial" font-size="20" fill="black">Items: 1</text>
+          <text x="50" y="520" font-family="Arial" font-size="20" fill="black">Margherita Basilico £15.70</text>
+        </svg>
+      `;
+      const imageBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
+
+      const ocrResult = await extractTextFromSlip(imageBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBe('11');
+      expect(parsed.receiptDate).toBe('16/10/2026');
+      expect(parsed.receiptTime).toBe('00:13');
+      expect(parsed.orderType).toBe('DELIVERY');
+      expect(parsed.needsReview).toBe(false);
+    }, 20000);
+
+    // 3. Faded Receipt: Simulated thermal fading via contrast reduction
+    it('accurately recovers all fields from a faded receipt via contrast normalization', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const fixturePath = path.resolve(__dirname, '../test/fixtures/reference-receipt.png');
+      const originalBuffer = fs.readFileSync(fixturePath);
+
+      // Heavy contrast reduction: light gray text on off-white background
+      const fadedBuffer = await sharp(originalBuffer).linear(0.35, 160).png().toBuffer();
+
+      const ocrResult = await extractTextFromSlip(fadedBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBe('62');
+      expect(parsed.receiptDate).toBe('16/10/2026');
+      expect(parsed.receiptTime).toBe('00:13');
+      expect(parsed.orderType).toBe('DELIVERY');
+      expect(parsed.needsReview).toBe(false);
+    }, 25000);
+
+    // 4. Tilted Receipt: Simulated camera tilt (+3 degrees)
+    it('accurately recovers fields from a tilted receipt', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const fixturePath = path.resolve(__dirname, '../test/fixtures/reference-receipt.png');
+      const originalBuffer = fs.readFileSync(fixturePath);
+
+      // Rotate by 3 degrees with white background
+      const tiltedBuffer = await sharp(originalBuffer).rotate(3, { background: '#ffffff' }).png().toBuffer();
+
+      const ocrResult = await extractTextFromSlip(tiltedBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBe('62');
+      expect(parsed.receiptDate).toBe('16/10/2026');
+      expect(parsed.receiptTime).toBe('00:13');
+      expect(parsed.orderType).toBe('DELIVERY');
+      expect(parsed.needsReview).toBe(false);
+    }, 25000);
+
+    // 5. Mildly Blurred Receipt: Simulated motion blur
+    it('accurately recovers fields from a mildly blurred receipt', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const fixturePath = path.resolve(__dirname, '../test/fixtures/reference-receipt.png');
+      const originalBuffer = fs.readFileSync(fixturePath);
+
+      const blurredBuffer = await sharp(originalBuffer).blur(1).png().toBuffer();
+
+      const ocrResult = await extractTextFromSlip(blurredBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBe('62');
+      expect(parsed.receiptDate).toBe('16/10/2026');
+      expect(parsed.receiptTime).toBe('00:13');
+      expect(parsed.orderType).toBe('DELIVERY');
+      expect(parsed.needsReview).toBe(false);
+    }, 25000);
+
+    // 6. Unsupported Conditions: Graceful failure without guessing digits
+    it('gracefully reports review requirement for severely blurred or blank images without guessing digits', async () => {
+      // Solid blank white image
+      const blankSvg = `<svg width="576" height="1024" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/></svg>`;
+      const blankBuffer = await sharp(Buffer.from(blankSvg)).png().toBuffer();
+
+      const ocrResult = await extractTextFromSlip(blankBuffer, { reuseWorker: true });
+      const parsed = parseSlipDetails(ocrResult);
+
+      expect(parsed.receiptNo).toBeNull();
+      expect(parsed.needsReview).toBe(true);
+      expect(parsed.templateResult).toBeUndefined();
+    }, 20000);
+  });
 });

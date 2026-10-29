@@ -15,7 +15,6 @@ import { getKolkataCurrentDate } from '../utils/timeZone';
 export const AdminDashboardPage: React.FC = () => {
   const {
     deliveries,
-    dailyStats,
     storageStats,
     selectedDate,
     setSelectedDate,
@@ -28,7 +27,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [agents, setAgents] = useState<DeliveryPersonStat[]>([]);
   const [allDeliveries, setAllDeliveries] = useState<DeliveryRecord[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loadingAgents, setLoadingAgents] = useState<boolean>(true);
+  const [, setLoadingAgents] = useState<boolean>(true);
   const [loadingActivities, setLoadingActivities] = useState<boolean>(false);
 
   const fetchAgentsAndDeliveries = async () => {

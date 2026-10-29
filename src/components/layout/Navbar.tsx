@@ -7,10 +7,14 @@ import AuthModal from '../auth/AuthModal';
 export { type UserRole };
 
 interface NavbarProps {
-  currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
+  currentRole?: UserRole;
+  onRoleChange?: (role: UserRole) => void;
   brandTitle?: string;
   brandSubtitle?: string;
+  brandName?: string;
+  logoSrc?: string;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -53,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       openAuthModal('login');
       return;
     }
-    onRoleChange(targetRole);
+    onRoleChange?.(targetRole);
     setIsRoleDropdownOpen(false);
     setIsMobileMenuOpen(false);
     if (targetRole === 'DELIVERY_PERSON') navigate('/delivery');

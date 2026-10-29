@@ -22,33 +22,6 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) =
         </Button>
       }
     >
-      {/* Metadata Row */}
-      <div
-        className="row mb-3"
-        style={{
-          background: '#F4F4F4',
-          margin: '0 0 20px 0',
-          padding: '12px 15px',
-          borderLeft: '4px solid #ee5057',
-        }}
-      >
-        <div className="col-sm-6 mb-2 mb-sm-0">
-          <span className="text-uppercase text-muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-            Delivery Person:
-          </span>
-          <div style={{ fontWeight: 600, color: '#1f3646' }}>
-            <i className="fa fa-user mr-1 tm-color-primary"></i> {delivery.deliveryPerson}
-          </div>
-        </div>
-        <div className="col-sm-6">
-          <span className="text-uppercase text-muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-            Customer / Order:
-          </span>
-          <div style={{ fontWeight: 600, color: '#1f3646' }}>
-            <i className="fa fa-tag mr-1 tm-color-primary"></i> {delivery.customer}
-          </div>
-        </div>
-      </div>
 
       {/* Slip Image Container */}
       <div className="mb-2">

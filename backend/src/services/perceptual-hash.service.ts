@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { AcceptedReceipt, IAcceptedReceiptDocument } from '../models/AcceptedReceipt';
+import { AcceptedReceipt } from '../models/AcceptedReceipt';
 import { InMemoryDatabase } from '../config/database';
 
 /**

@@ -13,6 +13,7 @@ export interface SidebarItem {
 interface SidebarProps {
   title: string;
   subtitle?: string;
+  description?: string;
   items?: SidebarItem[];
   children?: ReactNode;
   id?: string;

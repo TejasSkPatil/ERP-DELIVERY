@@ -5,7 +5,7 @@ import StatCard from '../../components/dashboard/StatCard';
 import CalendarDeliveryChecker from '../../components/delivery/CalendarDeliveryChecker';
 import StorageManagementCard from '../../components/admin/StorageManagementCard';
 import SlipViewerModal from '../../components/delivery/SlipViewerModal';
-import { DeliveryRecord, DailyStat, StorageStats } from '../../types/delivery';
+import { DeliveryRecord, StorageStats } from '../../types/delivery';
 import { UserRole } from '../../components/layout/Navbar';
 import { deliveryService } from '../../services/deliveryService';
 
@@ -23,7 +23,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [allDeliveries, setAllDeliveries] = useState<DeliveryRecord[]>([]);
   const [todayDeliveriesCount, setTodayDeliveriesCount] = useState<number>(0);
   const [todaySlipsCount, setTodaySlipsCount] = useState<number>(0);
-  const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
   const [storageStats, setStorageStats] = useState<StorageStats>({
     retentionDays: 32,
     oldestRecordDate: '06 Sep 2026',
@@ -44,39 +43,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       setTodayDeliveriesCount(todayRes.totalDeliveries);
       setTodaySlipsCount(todayRes.uploadedSlips);
-      setAllDeliveries(allRes.deliveries);
+      const deliveryList = Array.isArray(allRes) ? allRes : (allRes as any).deliveries || [];
+      setAllDeliveries(deliveryList);
       setStorageStats(storageRes);
 
-      // Group deliveries by calendar date to calculate daily counts
-      const dateMap = new Map<string, { total: number; slips: number }>();
-      allRes.deliveries.forEach((d) => {
-        const dDate = d.deliveryDate || todayRes.date;
-        const current = dateMap.get(dDate) || { total: 0, slips: 0 };
-        current.total += 1;
-        if (d.slipImageUrl) current.slips += 1;
-        dateMap.set(dDate, current);
-      });
-
-      // Ensure today's date exists
-      if (!dateMap.has(todayRes.date)) {
-        dateMap.set(todayRes.date, {
-          total: todayRes.totalDeliveries,
-          slips: todayRes.uploadedSlips,
-        });
-      }
-
-      const generatedStats: DailyStat[] = Array.from(dateMap.entries()).map(
-        ([date, val]) => ({
-          date,
-          totalDeliveries: val.total,
-          uploadedSlips: val.slips,
-          isToday: date === todayRes.date,
-        })
-      );
-
-      // Prepend previous days if needed for 32-day view
-      setDailyStats(generatedStats);
-      setSelectedDate(todayRes.date);
+      const todayDate = deliveryList[0]?.deliveryDate || '07 Oct 2026';
+      setSelectedDate(todayDate);
     } catch (err) {
       console.warn('Error fetching admin data:', err);
     } finally {
@@ -87,10 +59,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     fetchData();
   }, []);
-
-  const filteredDeliveries = allDeliveries.filter(
-    (item) => item.deliveryDate === selectedDate
-  );
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);

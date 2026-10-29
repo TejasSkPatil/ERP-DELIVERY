@@ -17,10 +17,55 @@
  * 6. Under no circumstance are missing fields synthesized or defaulted to current server timestamps.
  */
 
+import { z } from 'zod';
 import { normalizeSlipNumber, normalizeReceiptNo } from '../utils/normalize-slip-number';
 import { OCRLine } from './ocr.service';
 
 export { normalizeSlipNumber, normalizeReceiptNo };
+
+export interface FixedTemplateSlipDetails {
+  receiptNo: string;
+  receiptDate: string; // DD/MM/YYYY e.g. "16/10/2026"
+  receiptTime: string; // 24-hour HH:mm e.g. "00:13"
+  orderType: 'DELIVERY';
+}
+
+export const FixedTemplateSlipSchema = z.object({
+  receiptNo: z.string().regex(/^\d+$/, 'Receipt number must be a sequence of digits'),
+  receiptDate: z
+    .string()
+    .regex(/^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(20\d{2})$/, 'Date must be in DD/MM/YYYY format'),
+  receiptTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be a valid 24-hour HH:mm string'),
+  orderType: z.literal('DELIVERY'),
+});
+
+export type TemplateValidationReason =
+  | 'VALID'
+  | 'RECEIPT_NUMBER_UNREADABLE'
+  | 'DATE_UNREADABLE'
+  | 'TIME_UNREADABLE'
+  | 'NOT_DELIVERY'
+  | 'COLLECTION_REJECTED'
+  | 'WEB_ORDER_INSUFFICIENT'
+  | 'ORDER_TYPE_AMBIGUOUS'
+  | 'INVALID_CALENDAR_DATE'
+  | 'SCHEMA_VALIDATION_FAILED';
+
+export interface TemplateExtractionResult {
+  success: boolean;
+  code: TemplateValidationReason;
+  reason: TemplateValidationReason;
+  data: FixedTemplateSlipDetails | null;
+  error?: string | null;
+  rawCandidates?: {
+    receiptNo?: string | null;
+    receiptDate?: string | null;
+    receiptTime?: string | null;
+    orderType?: string | null;
+  };
+}
 
 export interface ReceiptCandidate {
   value: string;
@@ -32,12 +77,18 @@ export interface ReceiptCandidate {
 
 export interface ExtractedSlipDetails {
   receiptNo: string | null;
+  receiptDate?: string | null;
+  receiptTime?: string | null;
+  orderType?: string | null;
   printedDeliveryDate: string | null;
   printedDeliveryTime: string | null;
   rawText: string;
   confidence: number;
   needsReview: boolean;
   candidates?: ReceiptCandidate[];
+  error?: string | null;
+  templateResult?: FixedTemplateSlipDetails | null;
+  validationReason?: TemplateValidationReason;
 }
 
 export interface ParseOptions {
@@ -489,6 +540,267 @@ export function extractPrintedTime(text: string): string | null {
 }
 
 /**
+ * Template-specific extractor for the fixed ERP-DELIVERY receipt layout.
+ *
+ * Fixed Layout Fields:
+ * 1. receiptNo: Standalone number centered at top of the receipt, immediately above "Sales Receipt" (e.g. "62", "11").
+ * 2. receiptDate: Printed date on left side below business address in DD/MM/YYYY format (e.g. "16/10/2026").
+ * 3. receiptTime: Printed time on right side aligned with date in 24-hour HH:mm format (e.g. "00:13").
+ * 4. orderType: Bold label below printed time. Must be complete word "DELIVERY". Rejects "COLLECTION", "WEB ORDER", or partials.
+ */
+export function extractFixedTemplateFields(
+  ocrInput: {
+    text: string;
+    confidence?: number;
+    lines?: OCRLine[];
+    imageWidth?: number;
+    imageHeight?: number;
+    templateRegions?: {
+      receiptNo?: string | null;
+      receiptDate?: string | null;
+      receiptTime?: string | null;
+      orderType?: string | null;
+    };
+  }
+): TemplateExtractionResult {
+  const text = ocrInput?.text || '';
+  const lines = (ocrInput?.lines && ocrInput.lines.length > 0)
+    ? ocrInput.lines.map((l) => l.text.trim())
+    : text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  let rawReceiptNo: string | null = ocrInput?.templateRegions?.receiptNo || null;
+  let rawDate: string | null = ocrInput?.templateRegions?.receiptDate || null;
+  let rawTime: string | null = ocrInput?.templateRegions?.receiptTime || null;
+  let rawOrderType: string | null = ocrInput?.templateRegions?.orderType || null;
+
+  // Determine header boundary lines (above items/notes/totals)
+  const itemsStartIdx = lines.findIndex((l) =>
+    /^(?:items?:|item\b|notes?:|subtotal|delivery\s*charges|due\b)/i.test(l)
+  );
+  const headerLines = itemsStartIdx !== -1 ? lines.slice(0, itemsStartIdx) : lines.slice(0, 15);
+
+  // 1. Extract receiptNo: Standalone number in top-center region above "Sales Receipt"
+  // Examples: "62", "11", "7"
+  if (!rawReceiptNo) {
+    const salesReceiptIdx = lines.findIndex((l) => /\bsales\s*receipt\b/i.test(l));
+    if (salesReceiptIdx !== -1) {
+      // Search upwards from the line directly above Sales Receipt
+      for (let i = salesReceiptIdx - 1; i >= 0; i--) {
+        const line = lines[i];
+        // Standalone number (digits only, optional leading hash)
+        const numMatch = line.match(/^#?\s*(\d{1,8})\s*$/);
+        if (numMatch) {
+          rawReceiptNo = numMatch[1];
+          break;
+        }
+        // Number surrounded by noise symbols on borders (e.g. "3 62 x", "4 62 &")
+        const allNums = line.match(/\b\d{1,8}\b/g)?.filter((n) => !/^20\d{2}$/.test(n));
+        if (allNums && allNums.length > 0) {
+          // Select longest number candidate (e.g. "62" over single-digit border noise "3")
+          rawReceiptNo = allNums.sort((a, b) => b.length - a.length)[0];
+          break;
+        }
+      }
+    }
+  }
+
+  // Fallback for standalone receiptNo in top 3 lines if Sales Receipt anchor wasn't found or was on line 0
+  if (!rawReceiptNo) {
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const numMatch = lines[i].match(/^#?\s*(\d{1,8})\s*$/);
+      if (numMatch && !/^20\d{2}$/.test(numMatch[1])) {
+        rawReceiptNo = numMatch[1];
+        break;
+      }
+    }
+  }
+
+  // 2. Extract receiptDate: Left-side date region in DD/MM/YYYY format
+  // Example: 16/10/2026 must be recognized as 16 October 2026 (never interpreted using US MM/DD/YYYY format)
+  // Rejects invalid calendar dates (e.g. 31/02/2026 or 10/16/2026)
+  // Must NOT search outside header (numbers/dates in notes or delivery instructions cannot override)
+  if (!rawDate) {
+    const anyDateRegex = /(?<!\d)(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?!\d)/;
+    for (let i = 0; i < headerLines.length; i++) {
+      const line = headerLines[i];
+      // Skip due time, bottom instructions, or notes
+      if (/(?:due\b|asap|notes|deliver\s*to)/i.test(line)) continue;
+
+      const match = line.match(anyDateRegex);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const year = parseInt(match[3], 10);
+
+        if (isValidCalendarDate(year, month, day)) {
+          rawDate = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+          break;
+        } else {
+          return {
+            success: false,
+            code: 'INVALID_CALENDAR_DATE',
+            reason: 'INVALID_CALENDAR_DATE',
+            data: null,
+            error: `Invalid calendar date: ${match[0]} does not exist in the calendar.`,
+            rawCandidates: { receiptNo: rawReceiptNo, receiptDate: match[0], receiptTime: rawTime, orderType: rawOrderType },
+          };
+        }
+      }
+    }
+  }
+
+  // 3. Extract receiptTime: Right-side time region aligned with the date
+  // Valid 24-hour HH:mm (e.g. 00:13)
+  // Must NOT substitute due time printed lower on the receipt (Due: ASAP 00:34)
+  // Must NOT search outside header lines
+  if (!rawTime) {
+    const timeRegex = /(?<!\d)([01]\d|2[0-3]):([0-5]\d)(?!\d)/;
+    for (let i = 0; i < headerLines.length; i++) {
+      const line = headerLines[i];
+      // Ignore lines that represent due time, delivery instructions, items, notes, totals, or VAT
+      if (/(?:due|asap|deliver\s*to|item|margherita|notes|subtotal|charges|tax|paid|vat\b)/i.test(line)) {
+        continue;
+      }
+
+      const match = line.match(timeRegex);
+      if (match) {
+        rawTime = `${match[1]}:${match[2]}`;
+        break;
+      }
+    }
+  }
+
+  // 4. Extract orderType: Bold order-type label below the time
+  // Requires the complete word DELIVERY. Rejects COLLECTION, WEB ORDER, or partial matches such as DELIVER.
+  // Restricted to upper header section to avoid falsely matching 'Delivery Charges' in bill summary.
+  if (!rawOrderType) {
+    const isDeliveryLine = (l: string) =>
+      /^(?:order\s*type\s*[:\-]?\s*)?DELIVERY$/i.test(l.trim()) ||
+      (!/(?:charges|deliver\s*to|delivery\s*time|delivery\s*date)/i.test(l) && /\bDELIVERY\b/i.test(l.trim()));
+
+    const isCollectionLine = (l: string) =>
+      /^(?:order\s*type\s*[:\-]?\s*)?COLLECTION$/i.test(l.trim()) ||
+      (!/(?:charges|deliver\s*to|collection\s*time|collection\s*date)/i.test(l) && /\bCOLLECTION\b/i.test(l.trim()));
+
+    const hasDeliveryInHeader = headerLines.some(isDeliveryLine);
+    const hasCollectionInHeader = headerLines.some(isCollectionLine);
+
+    if (hasCollectionInHeader) {
+      rawOrderType = 'COLLECTION';
+    } else if (hasDeliveryInHeader) {
+      rawOrderType = 'DELIVERY';
+    } else {
+      // Check if partial word like DELIVER or WEB ORDER was provided on a standalone line
+      const partialDeliver = headerLines.some((l) => /^(?:order\s*type\s*[:\-]?\s*)?DELIVER$/i.test(l.trim()));
+      const webOrderOnly = headerLines.some((l) => /^(?:web\s*order)$/i.test(l.trim()));
+
+      if (partialDeliver) {
+        return {
+          success: false,
+          code: 'ORDER_TYPE_AMBIGUOUS',
+          reason: 'ORDER_TYPE_AMBIGUOUS',
+          data: null,
+          error: `Invalid order type: Partial match 'DELIVER' detected. The complete word 'DELIVERY' is required.`,
+          rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: rawTime, orderType: 'DELIVER' },
+        };
+      } else if (webOrderOnly) {
+        return {
+          success: false,
+          code: 'WEB_ORDER_INSUFFICIENT',
+          reason: 'WEB_ORDER_INSUFFICIENT',
+          data: null,
+          error: `Invalid order type: Found 'WEB ORDER', which alone is not proof of delivery. Complete word 'DELIVERY' is required.`,
+          rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: rawTime, orderType: 'WEB ORDER' },
+        };
+      }
+    }
+  }
+
+  // Verification checks for each required field with typed rejection reasons
+  if (!rawReceiptNo) {
+    return {
+      success: false,
+      code: 'RECEIPT_NUMBER_UNREADABLE',
+      reason: 'RECEIPT_NUMBER_UNREADABLE',
+      data: null,
+      error: 'Receipt number is unreadable: Could not find standalone number above Sales Receipt.',
+      rawCandidates: { receiptNo: null, receiptDate: rawDate, receiptTime: rawTime, orderType: rawOrderType },
+    };
+  }
+
+  if (!rawDate) {
+    return {
+      success: false,
+      code: 'DATE_UNREADABLE',
+      reason: 'DATE_UNREADABLE',
+      data: null,
+      error: 'Receipt date is unreadable or not in valid DD/MM/YYYY format.',
+      rawCandidates: { receiptNo: rawReceiptNo, receiptDate: null, receiptTime: rawTime, orderType: rawOrderType },
+    };
+  }
+
+  if (!rawTime) {
+    return {
+      success: false,
+      code: 'TIME_UNREADABLE',
+      reason: 'TIME_UNREADABLE',
+      data: null,
+      error: 'Receipt time is unreadable or missing aligned 24-hour HH:mm time.',
+      rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: null, orderType: rawOrderType },
+    };
+  }
+
+  if (rawOrderType === 'COLLECTION') {
+    return {
+      success: false,
+      code: 'COLLECTION_REJECTED',
+      reason: 'COLLECTION_REJECTED',
+      data: null,
+      error: "Order type is 'COLLECTION'. Only 'DELIVERY' receipts are accepted.",
+      rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: rawTime, orderType: 'COLLECTION' },
+    };
+  }
+
+  if (rawOrderType !== 'DELIVERY') {
+    return {
+      success: false,
+      code: 'NOT_DELIVERY',
+      reason: 'NOT_DELIVERY',
+      data: null,
+      error: "Order type is unreadable or not 'DELIVERY'.",
+      rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: rawTime, orderType: rawOrderType },
+    };
+  }
+
+  // Validate structured result against Zod Schema
+  const parseResult = FixedTemplateSlipSchema.safeParse({
+    receiptNo: rawReceiptNo,
+    receiptDate: rawDate,
+    receiptTime: rawTime,
+    orderType: rawOrderType,
+  });
+
+  if (!parseResult.success) {
+    return {
+      success: false,
+      code: 'SCHEMA_VALIDATION_FAILED',
+      reason: 'SCHEMA_VALIDATION_FAILED',
+      data: null,
+      error: `Schema validation failed: ${parseResult.error.issues.map((i) => i.message).join(', ')}`,
+      rawCandidates: { receiptNo: rawReceiptNo, receiptDate: rawDate, receiptTime: rawTime, orderType: rawOrderType },
+    };
+  }
+
+  return {
+    success: true,
+    code: 'VALID',
+    reason: 'VALID',
+    data: parseResult.data,
+    rawCandidates: parseResult.data,
+  };
+}
+
+/**
  * Parses raw OCR text into structured delivery slip fields.
  *
  * @param ocrResult Object containing raw OCR text, confidence score, and optional lines
@@ -496,7 +808,19 @@ export function extractPrintedTime(text: string): string | null {
  * @returns ExtractedSlipDetails with extracted fields and needsReview flag
  */
 export function parseSlipDetails(
-  ocrResult: { text: string; confidence?: number; lines?: OCRLine[] },
+  ocrResult: {
+    text: string;
+    confidence?: number;
+    lines?: OCRLine[];
+    imageWidth?: number;
+    imageHeight?: number;
+    templateRegions?: {
+      receiptNo?: string | null;
+      receiptDate?: string | null;
+      receiptTime?: string | null;
+      orderType?: string | null;
+    };
+  },
   options: ParseOptions = {}
 ): ExtractedSlipDetails {
   const rawText = ocrResult?.text ? ocrResult.text.trim() : '';
@@ -507,7 +831,84 @@ export function parseSlipDetails(
 
   const threshold = options.minConfidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
 
-  // Resolve receipt number with candidates and ambiguity check
+  // 1. Attempt fixed-template extraction
+  const templateResult = extractFixedTemplateFields(ocrResult);
+
+  if (templateResult.success && templateResult.data) {
+    const dmyMatch = templateResult.data.receiptDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const isoDate = dmyMatch
+      ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`
+      : templateResult.data.receiptDate;
+
+    return {
+      receiptNo: templateResult.data.receiptNo,
+      receiptDate: templateResult.data.receiptDate,
+      receiptTime: templateResult.data.receiptTime,
+      orderType: templateResult.data.orderType,
+      printedDeliveryDate: isoDate,
+      printedDeliveryTime: templateResult.data.receiptTime,
+      rawText,
+      confidence: Math.max(confidence, 90),
+      needsReview: false,
+      templateResult: templateResult.data,
+      validationReason: 'VALID',
+    };
+  }
+
+  if (templateResult.rawCandidates?.orderType === 'COLLECTION') {
+    const rawDate = templateResult.rawCandidates?.receiptDate || null;
+    const dmyMatch = rawDate ? rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/) : null;
+    const isoDate = dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : null;
+
+    return {
+      receiptNo: templateResult.rawCandidates?.receiptNo || null,
+      receiptDate: templateResult.rawCandidates?.receiptDate || null,
+      receiptTime: templateResult.rawCandidates?.receiptTime || null,
+      orderType: 'COLLECTION',
+      printedDeliveryDate: isoDate,
+      printedDeliveryTime: templateResult.rawCandidates?.receiptTime || null,
+      rawText,
+      confidence,
+      needsReview: true,
+      error: templateResult.error,
+      validationReason: 'COLLECTION_REJECTED',
+    };
+  }
+
+  // If fixed template slip was detected but failed strict acceptance rules:
+  const isDeliveryOrCollectionLine = (l: string) =>
+    /^(?:order\s*type\s*[:\-]?\s*)?(?:DELIVERY|COLLECTION)$/i.test(l.trim()) ||
+    (!/(?:charges|deliver\s*to|delivery\s*time|delivery\s*date|collection\s*time|collection\s*date)/i.test(l) &&
+      /\b(?:DELIVERY|COLLECTION)\b/i.test(l.trim()));
+
+  const checkLines = rawText.split(/\r?\n/).map((l) => l.trim());
+  const hasOrderType = checkLines.some(isDeliveryOrCollectionLine);
+  const isTemplateSlip =
+    hasOrderType ||
+    /\b(?:basilico|web\s*order)\b/i.test(rawText) ||
+    !!ocrResult?.templateRegions;
+
+  if (isTemplateSlip && !templateResult.success) {
+    const rawDate = templateResult.rawCandidates?.receiptDate || null;
+    const dmyMatch = rawDate ? rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/) : null;
+    const isoDate = dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : null;
+
+    return {
+      receiptNo: templateResult.rawCandidates?.receiptNo || null,
+      receiptDate: templateResult.rawCandidates?.receiptDate || null,
+      receiptTime: templateResult.rawCandidates?.receiptTime || null,
+      orderType: (templateResult.rawCandidates?.orderType as any) || undefined,
+      printedDeliveryDate: isoDate,
+      printedDeliveryTime: templateResult.rawCandidates?.receiptTime || null,
+      rawText,
+      confidence,
+      needsReview: true,
+      error: templateResult.error,
+      validationReason: templateResult.code,
+    };
+  }
+
+  // 2. Generic fallback for legacy formats and tests
   const { receiptNo, candidates, isAmbiguous } = resolveReceiptNumber(rawText, {
     lines: ocrResult?.lines,
   });
@@ -528,11 +929,6 @@ export function parseSlipDetails(
     });
   }
 
-  // Determine if manual review is needed:
-  // 1. Overall OCR confidence is below the threshold
-  // 2. Receipt number could not be identified or is ambiguous
-  // 3. Raw text is completely empty or insufficient
-  // 4. Missing printed delivery date or time
   const isConfidenceLow = confidence < threshold;
   const isReceiptMissing = receiptNo === null;
   const isTextEmpty = rawText.length === 0;
@@ -543,6 +939,9 @@ export function parseSlipDetails(
     receiptNo,
     printedDeliveryDate,
     printedDeliveryTime,
+    receiptDate: printedDeliveryDate || undefined,
+    receiptTime: printedDeliveryTime || undefined,
+    orderType: /\bDELIVERY\b/i.test(rawText) ? 'DELIVERY' : undefined,
     rawText,
     confidence,
     needsReview,
@@ -552,6 +951,7 @@ export function parseSlipDetails(
 
 export default {
   parseSlipDetails,
+  extractFixedTemplateFields,
   extractReceiptNo,
   resolveReceiptNumber,
   findReceiptCandidates,
@@ -560,3 +960,4 @@ export default {
   normalizeReceiptNo,
   DEFAULT_CONFIDENCE_THRESHOLD,
 };
+

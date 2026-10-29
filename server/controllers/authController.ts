@@ -49,7 +49,7 @@ export const seedInitialUsers = async () => {
       try {
         const exists = await User.findOne({ email: acc.email });
         if (!exists) {
-          await User.create(userData);
+          await User.create(userData as any);
         }
       } catch (err) {
         // Fallback to in-memory if MongoDB connection errors

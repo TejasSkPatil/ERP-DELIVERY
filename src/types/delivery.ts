@@ -5,6 +5,7 @@ export interface DeliveryRecord {
   receiptNo: string;
   receiptDate?: string; // Date printed on receipt (extracted via OCR)
   receiptTime?: string; // Time printed on receipt (extracted via OCR)
+  orderType?: string; // Order type label (strictly DELIVERY)
   recipientName?: string;
   customer?: string; // UI alias for recipient name
   deliveryPerson?: string;

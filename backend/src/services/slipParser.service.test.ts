@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseSlipDetails,
+  extractFixedTemplateFields,
+  FixedTemplateSlipSchema,
   extractReceiptNo,
   extractPrintedDate,
   extractPrintedTime,
@@ -268,4 +270,200 @@ describe('Slip Parser Service', () => {
       expect(result.needsReview).toBe(true);
     });
   });
+
+  describe('Fixed Template-Specific OCR Extraction', () => {
+    const referenceReceiptText = `
+      62
+      Sales Receipt
+      Basilico
+      26 Penton St, The Angel
+      London, N1 9PS
+      16/10/2026
+      7470
+      00:13
+      DELIVERY
+      Web Order
+      Items: 1
+      Item    Price
+      Margherita Basilico   £ 15.70
+      + Medium 12"
+      + Olives
+      Notes: Contact access code:
+      827130901
+      Subtotal   £ 15.70
+      Delivery Charges   £ 3.99
+      Tax   £ 3.28
+      PAID by Credit   £ 19.69
+      VAT #: 380937568
+      Deliver to:   Due: ASAP 00:34
+      A. Gilad - 442033195035   0
+      Drury Lane 141, Prestige
+      student living
+      WC2B5TB
+      London
+    `;
+
+    it('successfully extracts required fields from reference receipt (receipt 62)', () => {
+      const result = extractFixedTemplateFields({ text: referenceReceiptText, confidence: 95 });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        receiptNo: '62',
+        receiptDate: '16/10/2026',
+        receiptTime: '00:13',
+        orderType: 'DELIVERY',
+      });
+
+      // Verify schema validation
+      const schemaValidation = FixedTemplateSlipSchema.safeParse(result.data);
+      expect(schemaValidation.success).toBe(true);
+    });
+
+    it('successfully extracts receipt number 11 above Sales Receipt', () => {
+      const text = referenceReceiptText.replace('62\n', '11\n');
+      const result = extractFixedTemplateFields({ text, confidence: 95 });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.receiptNo).toBe('11');
+      expect(result.data?.receiptDate).toBe('16/10/2026');
+      expect(result.data?.receiptTime).toBe('00:13');
+      expect(result.data?.orderType).toBe('DELIVERY');
+    });
+
+    it('does not select unrelated numbers (7470, access codes, phone numbers, VAT, or prices) as receiptNo', () => {
+      const textWithoutTopReceiptNo = `
+        Sales Receipt
+        Basilico
+        26 Penton St, The Angel
+        16/10/2026
+        7470
+        00:13
+        DELIVERY
+        Margherita Basilico £ 15.70
+        Notes: Contact access code: 827130901
+        VAT #: 380937568
+        Deliver to: A. Gilad - 442033195035
+      `;
+
+      const result = extractFixedTemplateFields({ text: textWithoutTopReceiptNo, confidence: 90 });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Could not find standalone number above Sales Receipt');
+      expect(result.rawCandidates?.receiptNo).not.toBe('7470');
+      expect(result.rawCandidates?.receiptNo).not.toBe('827130901');
+      expect(result.rawCandidates?.receiptNo).not.toBe('442033195035');
+      expect(result.rawCandidates?.receiptNo).not.toBe('380937568');
+    });
+
+    it('rejects COLLECTION receipts with specific extraction error and typed code', () => {
+      const collectionText = referenceReceiptText.replace('DELIVERY', 'COLLECTION');
+      const result = extractFixedTemplateFields({ text: collectionText, confidence: 92 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('COLLECTION_REJECTED');
+      expect(result.reason).toBe('COLLECTION_REJECTED');
+      expect(result.error).toContain("Order type is 'COLLECTION'");
+    });
+
+    it('rejects partial order-type matches like DELIVER with ORDER_TYPE_AMBIGUOUS', () => {
+      const partialText = referenceReceiptText.replace('DELIVERY', 'DELIVER');
+      const result = extractFixedTemplateFields({ text: partialText, confidence: 92 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('ORDER_TYPE_AMBIGUOUS');
+      expect(result.error).toContain("Partial match 'DELIVER' detected");
+    });
+
+    it('rejects WEB ORDER alone as not proof of delivery with WEB_ORDER_INSUFFICIENT', () => {
+      // Remove DELIVERY completely and only keep Web Order
+      const webOrderOnlyText = referenceReceiptText.replace('DELIVERY\n', '');
+      const result = extractFixedTemplateFields({ text: webOrderOnlyText, confidence: 92 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('WEB_ORDER_INSUFFICIENT');
+      expect(result.error).toContain("Found 'WEB ORDER', which alone is not proof of delivery");
+    });
+
+    it('rejects unreadable receipt number with RECEIPT_NUMBER_UNREADABLE', () => {
+      const noReceiptNoText = referenceReceiptText.replace('62\n', '');
+      const result = extractFixedTemplateFields({ text: noReceiptNoText, confidence: 90 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('RECEIPT_NUMBER_UNREADABLE');
+      expect(result.error).toContain('Receipt number is unreadable');
+    });
+
+    it('does not allow dates elsewhere on the receipt to override an unreadable date region', () => {
+      // Remove 16/10/2026 from header, but include another date in the notes/address at the bottom
+      const dateElsewhereText = referenceReceiptText
+        .replace('16/10/2026', 'XXXX-XX-XX')
+        .concat('\nDelivered to customer on 25/12/2026');
+
+      const result = extractFixedTemplateFields({ text: dateElsewhereText, confidence: 90 });
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('DATE_UNREADABLE');
+      expect(result.data).toBeNull();
+      // Verifies 25/12/2026 from lower notes did not substitute for the unreadable target region
+      expect(result.rawCandidates?.receiptDate).toBeNull();
+    });
+
+    it('does not allow due time 00:34 elsewhere on the receipt to override an unreadable time region', () => {
+      // Remove 00:13 from header, keeping Due: ASAP 00:34 lower down
+      const timeElsewhereText = referenceReceiptText.replace('00:13', 'XX:XX');
+
+      const result = extractFixedTemplateFields({ text: timeElsewhereText, confidence: 90 });
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('TIME_UNREADABLE');
+      expect(result.data).toBeNull();
+      // Verifies due time 00:34 did not substitute for unreadable target time
+      expect(result.rawCandidates?.receiptTime).toBeNull();
+    });
+
+    it('rejects invalid calendar dates (e.g. 31/02/2026) with INVALID_CALENDAR_DATE', () => {
+      const invalidDateText = referenceReceiptText.replace('16/10/2026', '31/02/2026');
+      const result = extractFixedTemplateFields({ text: invalidDateText, confidence: 92 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('INVALID_CALENDAR_DATE');
+      expect(result.error).toContain('does not exist in the calendar');
+    });
+
+    it('rejects US date formats where month exceeds 12 (e.g. 10/16/2026)', () => {
+      // In DD/MM/YYYY, 10/16/2026 represents Month 16 which is invalid
+      const usDateText = referenceReceiptText.replace('16/10/2026', '10/16/2026');
+      const result = extractFixedTemplateFields({ text: usDateText, confidence: 92 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('INVALID_CALENDAR_DATE');
+      expect(result.error).toContain('does not exist in the calendar');
+    });
+
+    it('preserves 00:13 and does not substitute due time 00:34', () => {
+      const result = extractFixedTemplateFields({ text: referenceReceiptText, confidence: 95 });
+
+      expect(result.success).toBe(true);
+      expect(result.code).toBe('VALID');
+      expect(result.data?.receiptTime).toBe('00:13');
+      expect(result.data?.receiptTime).not.toBe('00:34');
+    });
+
+    it('integrates cleanly with parseSlipDetails for the reference receipt', () => {
+      const result = parseSlipDetails({ text: referenceReceiptText, confidence: 95 });
+
+      expect(result.receiptNo).toBe('62');
+      expect(result.receiptDate).toBe('16/10/2026');
+      expect(result.receiptTime).toBe('00:13');
+      expect(result.orderType).toBe('DELIVERY');
+      expect(result.printedDeliveryDate).toBe('2026-10-16');
+      expect(result.printedDeliveryTime).toBe('00:13');
+      expect(result.needsReview).toBe(false);
+      expect(result.validationReason).toBe('VALID');
+      expect(result.templateResult).toEqual({
+        receiptNo: '62',
+        receiptDate: '16/10/2026',
+        receiptTime: '00:13',
+        orderType: 'DELIVERY',
+      });
+    });
+  });
 });
+

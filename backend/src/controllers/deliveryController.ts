@@ -169,6 +169,25 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       }
     } else {
       // Automatic OCR Mode (No manual receiptNo provided in request)
+      // Check for explicit template rejection (e.g. COLLECTION slip)
+      if (extractedDetails.orderType === 'COLLECTION' || extractedDetails.validationReason === 'COLLECTION_REJECTED') {
+        return res.status(422).json({
+          success: false,
+          code: 'COLLECTION_REJECTED',
+          message: "'COLLECTION' slips :Invalid slip",
+          ocr: extractedDetails,
+        });
+      }
+
+      if (extractedDetails.error) {
+        return res.status(422).json({
+          success: false,
+          code: extractedDetails.validationReason || 'VALIDATION_FAILED',
+          message: extractedDetails.error,
+          ocr: extractedDetails,
+        });
+      }
+
       if (!extractedDetails.receiptNo) {
         const isAmbiguous =
           (extractedDetails.candidates && extractedDetails.candidates.length > 1);
@@ -206,7 +225,9 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
         });
       }
 
-      if (extractedDetails.confidence < 60 || extractedDetails.needsReview) {
+      const isTemplateValid =
+        extractedDetails.validationReason === 'VALID' && !extractedDetails.needsReview;
+      if (!isTemplateValid && (extractedDetails.confidence < 60 || extractedDetails.needsReview)) {
         return res.status(422).json({
           success: false,
           message: 'The scanned receipt values are ambiguous or below the reliability threshold. Please upload a clearer image.',
@@ -358,6 +379,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
         receiptNo: clientReceiptNo,
         receiptDate: receiptDate || extractedDetails.printedDeliveryDate || '',
         receiptTime: receiptTime || extractedDetails.printedDeliveryTime || '',
+        orderType: extractedDetails.orderType || 'DELIVERY',
         recipientName,
         userId: legacyUserId,
         deliveryPersonId: new mongoose.Types.ObjectId(deliveryPersonId),
@@ -416,6 +438,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       receiptNo: delivery.receiptNo,
       receiptDate: delivery.receiptDate || receiptDate || delivery.deliveryDate,
       receiptTime: delivery.receiptTime || receiptTime || '',
+      orderType: (delivery as any).orderType || extractedDetails.orderType || 'DELIVERY',
       recipientName: delivery.recipientName,
       deliveryDate: delivery.deliveryDate,
       uploadedAt: delivery.uploadedAt,
@@ -425,6 +448,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
         extractedReceiptNo: extractedDetails.receiptNo,
         printedDeliveryDate: extractedDetails.printedDeliveryDate,
         printedDeliveryTime: extractedDetails.printedDeliveryTime,
+        orderType: extractedDetails.orderType || 'DELIVERY',
         confidence: extractedDetails.confidence,
         needsReview: requiresManualReview,
         isVerified: isDeliveryVerified,
@@ -450,6 +474,7 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
         receiptNo: delivery.receiptNo,
         receiptDate: delivery.receiptDate || receiptDate || delivery.deliveryDate,
         receiptTime: delivery.receiptTime || receiptTime || '',
+        orderType: (delivery as any).orderType || extractedDetails.orderType || 'DELIVERY',
         recipientName: delivery.recipientName,
         userId: delivery.userId?.toString(),
         deliveryPersonId: delivery.deliveryPersonId?.toString(),

@@ -125,7 +125,7 @@ export const ContentWithSidebar: React.FC<ContentWithSidebarProps> = ({
           </div>
 
           <Sidebar
-            title={sidebarTitle}
+            title={sidebarTitle || ''}
             description={sidebarDescription}
             items={sidebarItems}
           />

@@ -34,6 +34,7 @@ export const authService = {
     }
 
     const payload: TokenPayload = {
+      userId: user.id || user._id.toString(),
       id: user.id || user._id.toString(),
       email: user.email,
       role: user.role,

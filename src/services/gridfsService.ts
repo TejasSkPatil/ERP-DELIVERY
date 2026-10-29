@@ -32,7 +32,6 @@ export const uploadSlip = async (
   return new Promise((resolve, reject) => {
     try {
       const uploadStream = bucket.openUploadStream(filename, {
-        contentType: mimetype,
         metadata: {
           ...metadata,
           contentType: mimetype,

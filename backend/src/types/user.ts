@@ -6,6 +6,9 @@ export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export interface TokenPayload {
   userId: string;
   role: UserRole;
+  id?: string;
+  email?: string;
+  name?: string;
   iat?: number;
   exp?: number;
 }
@@ -17,6 +20,7 @@ export interface IUser {
   email: string;
   phone?: string;
   password?: string;
+  passwordHash?: string;
   role: UserRole;
   status?: UserStatus;
   createdAt?: Date;
@@ -29,6 +33,7 @@ export interface IUserDocument extends Document {
   email: string;
   phone?: string;
   password?: string;
+  passwordHash?: string;
   role: UserRole;
   status: UserStatus;
   createdAt: Date;
