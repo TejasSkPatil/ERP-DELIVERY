@@ -1,6 +1,7 @@
 import React from 'react';
 import { DeliveryRecord } from '../../types/delivery';
 import { Modal, Button, ImageContainer } from '../ui';
+import { formatDisplayDate } from '../../utils/timeZone';
 
 interface ImageViewerProps {
   delivery: DeliveryRecord | null;
@@ -15,7 +16,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) =
       isOpen={Boolean(delivery)}
       onClose={onClose}
       title={`Delivery Proof \u2022 Receipt #${delivery.receiptNo}`}
-      subtitle={`Recorded on ${delivery.deliveryDate} at ${delivery.uploadedTime}`}
+      subtitle={`Recorded on ${formatDisplayDate(delivery.receiptDate || delivery.deliveryDate)} at ${delivery.uploadedTime}`}
       footer={
         <Button variant="primary" onClick={onClose}>
           Close Viewer

@@ -10,7 +10,7 @@ import { useDeliveries } from '../hooks/useDeliveries';
 import { deliveryService } from '../services/deliveryService';
 import { DeliveryPersonStat, DeliveryRecord } from '../types/delivery';
 import { ActivityItem } from '../types/activity';
-import { getKolkataCurrentDate } from '../utils/timeZone';
+import { getKolkataCurrentDate, formatDisplayDate } from '../utils/timeZone';
 
 export const AdminDashboardPage: React.FC = () => {
   const {
@@ -68,7 +68,9 @@ export const AdminDashboardPage: React.FC = () => {
   const totalDeliveriesSource = allDeliveries.length > 0 ? allDeliveries : deliveries;
 
   // Filter deliveries that took place TODAY only
-  const todayDeliveriesList = totalDeliveriesSource.filter((d) => d.deliveryDate === todayKolkataDate);
+  const todayDeliveriesList = totalDeliveriesSource.filter(
+    (d) => formatDisplayDate(d.receiptDate || d.deliveryDate) === formatDisplayDate(todayKolkataDate)
+  );
   const todayDeliveriesCount = todayDeliveriesList.length > 0 ? todayDeliveriesList.length : 4;
 
   // Filter proof slips uploaded TODAY only

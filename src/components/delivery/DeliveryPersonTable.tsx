@@ -1,6 +1,7 @@
 import React from 'react';
 import { DeliveryRecord } from '../../types/delivery';
 import { Table, Column, Badge, Button } from '../ui';
+import { formatDisplayDate } from '../../utils/timeZone';
 
 interface DeliveryPersonTableProps {
   deliveries: DeliveryRecord[];
@@ -26,7 +27,7 @@ export const DeliveryPersonTable: React.FC<DeliveryPersonTableProps> = ({
       header: 'Receipt Date.',
       render: (row) => (
         <span style={{ fontWeight: 500, color: '#2c3e50' }}>
-          {row.receiptDate || row.deliveryDate || '-'}
+          {formatDisplayDate(row.receiptDate || row.deliveryDate)}
         </span>
       ),
     },

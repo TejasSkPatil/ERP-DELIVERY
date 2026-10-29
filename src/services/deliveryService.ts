@@ -7,6 +7,7 @@ import {
   DeliveryPersonStat,
 } from '../types/delivery';
 import { INITIAL_DELIVERIES, INITIAL_DAILY_STATS, INITIAL_STORAGE_STATS } from '../utils/mockData';
+import { formatDisplayDate } from '../utils/timeZone';
 
 export const deliveryService = {
   // Submit new delivery proof (Delivery Person)
@@ -40,7 +41,7 @@ export const deliveryService = {
         deliveryPerson: 'Bhushan Lokhande (You)',
         deliveryPersonId: d.deliveryPersonId,
         deliveryDate: d.deliveryDate,
-        receiptDate: d.receiptDate || res.data.receiptDate || d.deliveryDate,
+        receiptDate: formatDisplayDate(d.receiptDate || res.data.receiptDate || d.deliveryDate),
         receiptTime: d.receiptTime || res.data.receiptTime || '',
         orderType: d.orderType || res.data.orderType || res.data.ocr?.orderType || 'DELIVERY',
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : new Date().toLocaleTimeString('en-GB'),
@@ -79,7 +80,7 @@ export const deliveryService = {
         deliveryPerson: 'Bhushan Lokhande (You)',
         deliveryPersonId: d.deliveryPersonId,
         deliveryDate: d.deliveryDate,
-        receiptDate: d.receiptDate || d.deliveryDate,
+        receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
         receiptTime: d.receiptTime || '',
         orderType: d.orderType || 'DELIVERY',
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '',
@@ -120,6 +121,9 @@ export const deliveryService = {
         deliveryPerson: d.deliveryPersonName || 'Bhushan Lokhande (DP-01)',
         deliveryPersonId: d.deliveryPersonId,
         deliveryDate: d.deliveryDate,
+        receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
+        receiptTime: d.receiptTime || '',
+        orderType: d.orderType || 'DELIVERY',
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '12:00:00 IST',
         uploadedAt: d.uploadedAt,
         status: d.status || 'DELIVERED',

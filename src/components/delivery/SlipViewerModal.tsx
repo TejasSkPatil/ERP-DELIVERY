@@ -1,5 +1,6 @@
 import React from 'react';
 import { DeliveryRecord } from '../../types/delivery';
+import { formatDisplayDate } from '../../utils/timeZone';
 
 interface SlipViewerModalProps {
   delivery: DeliveryRecord | null;
@@ -54,7 +55,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
               Delivery Proof &bull; Receipt #{delivery.receiptNo}
             </h3>
             <p className="tm-color-white tm-margin-b-0 tm-font-light" style={{ fontSize: '0.85rem' }}>
-              Recorded on {delivery.deliveryDate} at {delivery.uploadedTime}
+              Recorded on {formatDisplayDate(delivery.receiptDate || delivery.deliveryDate)} at {delivery.uploadedTime}
             </p>
           </div>
           <button

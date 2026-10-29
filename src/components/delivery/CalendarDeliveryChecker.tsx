@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DeliveryRecord, DeliveryPersonStat } from '../../types/delivery';
 import { Table, Column, Badge, Button } from '../ui';
-import { getKolkataCurrentDate } from '../../utils/timeZone';
+import { getKolkataCurrentDate, formatDisplayDate } from '../../utils/timeZone';
 
 interface CalendarDeliveryCheckerProps {
   deliveries: DeliveryRecord[];
@@ -21,10 +21,25 @@ const MONTH_SHORT = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
-// Helper: Parse "08 Oct 2026" into Date object
+// Helper: Parse any date string into Date object
 const parseFormattedDate = (dateStr: string): Date => {
   if (!dateStr) return new Date();
-  const parts = dateStr.trim().split(' ');
+  const clean = dateStr.trim();
+
+  // DD/MM/YYYY
+  const dmyMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmyMatch) {
+    return new Date(parseInt(dmyMatch[3], 10), parseInt(dmyMatch[2], 10) - 1, parseInt(dmyMatch[1], 10));
+  }
+
+  // YYYY-MM-DD
+  const ymdMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymdMatch) {
+    return new Date(parseInt(ymdMatch[1], 10), parseInt(ymdMatch[2], 10) - 1, parseInt(ymdMatch[3], 10));
+  }
+
+  // "08 Oct 2026"
+  const parts = clean.split(' ');
   if (parts.length === 3) {
     const day = parseInt(parts[0], 10);
     const monthIdx = MONTH_SHORT.indexOf(parts[1]);
@@ -33,16 +48,17 @@ const parseFormattedDate = (dateStr: string): Date => {
       return new Date(year, monthIdx, day);
     }
   }
+
   const fallback = new Date(dateStr);
   return isNaN(fallback.getTime()) ? new Date() : fallback;
 };
 
-// Helper: Format Date object to "08 Oct 2026"
+// Helper: Format Date object to DD/MM/YYYY (e.g. "16/10/2026")
 const formatDateToKolkata = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
-  const m = MONTH_SHORT[date.getMonth()];
+  const m = String(date.getMonth() + 1).padStart(2, '0');
   const y = date.getFullYear();
-  return `${d} ${m} ${y}`;
+  return `${d}/${m}/${y}`;
 };
 
 // Helper: Format Date object to YYYY-MM-DD for <input type="date">
@@ -73,8 +89,8 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
   const deliveryCountByDate = useMemo(() => {
     const counts: Record<string, number> = {};
     deliveries.forEach((d) => {
-      const dateKey = d.deliveryDate;
-      if (dateKey) {
+      const dateKey = formatDisplayDate(d.receiptDate || d.deliveryDate);
+      if (dateKey && dateKey !== '-') {
         counts[dateKey] = (counts[dateKey] || 0) + 1;
       }
     });
@@ -83,7 +99,13 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
 
   // Unique list of dates present in deliveries
   const availableDates = useMemo(() => {
-    const unique = Array.from(new Set(deliveries.map((d) => d.deliveryDate).filter(Boolean)));
+    const unique = Array.from(
+      new Set(
+        deliveries
+          .map((d) => formatDisplayDate(d.receiptDate || d.deliveryDate))
+          .filter((d) => d && d !== '-')
+      )
+    );
     return unique;
   }, [deliveries]);
 
@@ -139,7 +161,7 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
         dateString: dateStr,
         isCurrentMonth: true,
         deliveryCount: deliveryCountByDate[dateStr] || 0,
-        isSelected: dateStr === selectedDate,
+        isSelected: formatDisplayDate(dateStr) === formatDisplayDate(selectedDate),
       });
     }
 
@@ -169,7 +191,10 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter((item) => {
       // 1. Filter by date
-      if (selectedDate && item.deliveryDate !== selectedDate) {
+      if (
+        selectedDate &&
+        formatDisplayDate(item.receiptDate || item.deliveryDate) !== formatDisplayDate(selectedDate)
+      ) {
         return false;
       }
 
@@ -239,7 +264,7 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
       render: (row) => (
         <span className="badge badge-light" style={{ fontSize: '0.82rem', padding: '5px 8px' }}>
           <i className="fa fa-calendar-o mr-1"></i>
-          {row.deliveryDate}
+          {formatDisplayDate(row.receiptDate || row.deliveryDate)}
         </span>
       ),
     },
@@ -530,7 +555,9 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
               <i className="fa fa-clock-o mr-1"></i> Quick Dates:
             </span>
             {availableDates.slice(0, 6).map((dStr) => {
-              const isCurrent = dStr === selectedDate;
+              const displayDate = formatDisplayDate(dStr);
+              const isCurrent = displayDate === formatDisplayDate(selectedDate);
+              const count = deliveryCountByDate[displayDate] || deliveryCountByDate[dStr] || 0;
               return (
                 <button
                   key={dStr}
@@ -547,7 +574,7 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
                     fontWeight: isCurrent ? 700 : 500,
                   }}
                 >
-                  {dStr} {deliveryCountByDate[dStr] ? `(${deliveryCountByDate[dStr]})` : ''}
+                  {displayDate} {count ? `(${count})` : ''}
                 </button>
               );
             })}
@@ -605,7 +632,7 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
         >
           <div>
             <span style={{ fontSize: '0.9rem', color: '#1f3646' }}>
-              Showing Deliveries for Date: <strong style={{ color: '#ee5057' }}>{selectedDate}</strong>
+              Showing Deliveries for Date: <strong style={{ color: '#ee5057' }}>{formatDisplayDate(selectedDate)}</strong>
               {selectedPerson !== 'ALL' && (
                 <> &bull; Filtered by Delivery Boy: <strong>{selectedPerson}</strong></>
               )}
@@ -642,8 +669,8 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
           columns={columns}
           data={filteredDeliveries}
           keyExtractor={(row) => row.id}
-          title={`Delivery Records for ${selectedDate}`}
-          subtitle={`Verified delivery log & GridFS proof slips for ${selectedDate}${
+          title={`Delivery Records for ${formatDisplayDate(selectedDate)}`}
+          subtitle={`Verified delivery log & GridFS proof slips for ${formatDisplayDate(selectedDate)}${
             selectedPerson !== 'ALL' ? ` (Assigned to ${selectedPerson})` : ''
           }`}
           headerAction={
@@ -671,7 +698,7 @@ export const CalendarDeliveryChecker: React.FC<CalendarDeliveryCheckerProps> = (
               />
             </div>
           }
-          emptyMessage={`No deliveries found for ${selectedDate}${
+          emptyMessage={`No deliveries found for ${formatDisplayDate(selectedDate)}${
             selectedPerson !== 'ALL' ? ` by ${selectedPerson}` : ''
           }. Open the calendar above to pick another date!`}
         />

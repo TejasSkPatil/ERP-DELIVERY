@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { DeliveryRecord, NewDeliveryInput } from '../../types/delivery';
 import { deliveryService } from '../../services/deliveryService';
 import { Alert, Button, Badge } from '../ui';
+import { formatDisplayDate } from '../../utils/timeZone';
 
 interface DeliveryFormProps {
   onCompleteDelivery?: (input: NewDeliveryInput) => Promise<DeliveryRecord>;
@@ -149,7 +150,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                         <strong>Receipt No:</strong> <span className="badge badge-danger" style={{ backgroundColor: '#ee5057', fontSize: '0.85rem' }}>#{completedRecord.receiptNo}</span>
                       </span>
                       <span>
-                        <strong>Receipt Date:</strong> <code>{completedRecord.receiptDate || completedRecord.deliveryDate}</code>
+                        <strong>Receipt Date:</strong> <code>{formatDisplayDate(completedRecord.receiptDate || completedRecord.deliveryDate)}</code>
                       </span>
                       <span>
                         <strong>Receipt Time:</strong> <code>{completedRecord.receiptTime || 'Extracted'}</code>

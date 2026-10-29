@@ -47,7 +47,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setAllDeliveries(deliveryList);
       setStorageStats(storageRes);
 
-      const todayDate = deliveryList[0]?.deliveryDate || '07 Oct 2026';
+      const todayDate = deliveryList[0]?.deliveryDate || '07/10/2026';
       setSelectedDate(todayDate);
     } catch (err) {
       console.warn('Error fetching admin data:', err);

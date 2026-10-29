@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { DeliveryRecord } from '../../types/delivery';
 import { Table, Column, Badge, Button } from '../ui';
+import { formatDisplayDate } from '../../utils/timeZone';
 
 interface DeliveryTableProps {
   deliveries: DeliveryRecord[];
@@ -56,7 +57,11 @@ export const DeliveryTable: React.FC<DeliveryTableProps> = ({
     {
       key: 'deliveryDate',
       header: 'Delivery Date',
-      render: (row) => <span className="text-muted">{row.deliveryDate}</span>,
+      render: (row) => (
+        <span className="text-muted">
+          {formatDisplayDate(row.receiptDate || row.deliveryDate)}
+        </span>
+      ),
     },
     {
       key: 'uploadedTime',
@@ -125,7 +130,7 @@ export const DeliveryTable: React.FC<DeliveryTableProps> = ({
         columns={columns}
         data={filteredDeliveries}
         keyExtractor={(row) => row.id}
-        title={`Delivery Records for ${selectedDate}`}
+        title={`Delivery Records for ${formatDisplayDate(selectedDate)}`}
         subtitle={`Showing ${filteredDeliveries.length} verified deliveries with GridFS proof slips`}
         headerAction={searchBox}
         emptyMessage="No delivery records found matching this criteria."
