@@ -2,6 +2,8 @@ import React from 'react';
 import { DeliveryRecord } from '../../types/delivery';
 import { Modal, Button, ImageContainer } from '../ui';
 import { formatDisplayDate } from '../../utils/timeZone';
+import { getCachedSlipImage } from '../../utils/slipImageCache';
+import { getApiBaseUrl } from '../../services/api';
 
 interface ImageViewerProps {
   delivery: DeliveryRecord | null;
@@ -10,6 +12,31 @@ interface ImageViewerProps {
 
 export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) => {
   if (!delivery) return null;
+
+  const cachedSlip =
+    getCachedSlipImage(delivery.receiptNo) ||
+    getCachedSlipImage(delivery.slipFileId) ||
+    getCachedSlipImage(delivery.id);
+
+  const base = getApiBaseUrl();
+  const directGridFsUrl = delivery.slipFileId
+    ? `${base}/delivery/slip/${delivery.slipFileId}`
+    : undefined;
+  const relativeGridFsUrl = delivery.slipFileId
+    ? `/api/delivery/slip/${delivery.slipFileId}`
+    : undefined;
+
+  // Use freshly uploaded preview/cached slip if available, or direct GridFS stream
+  const primarySrc =
+    cachedSlip || delivery.slipImageUrl || directGridFsUrl || '/img/img-01.jpg';
+
+  const fallbacks = [
+    cachedSlip,
+    delivery.slipImageUrl,
+    directGridFsUrl,
+    relativeGridFsUrl,
+    '/img/img-01.jpg',
+  ];
 
   return (
     <Modal
@@ -23,7 +50,6 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) =
         </Button>
       }
     >
-
       {/* Slip Image Container */}
       <div className="mb-2">
         <span
@@ -33,7 +59,8 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ delivery, onClose }) =
           Single-Source MongoDB GridFS Proof Slip:
         </span>
         <ImageContainer
-          src={delivery.slipImageUrl || '/img/img-01.jpg'}
+          src={primarySrc}
+          fallbacks={fallbacks}
           alt={`Proof slip for Receipt #${delivery.receiptNo}`}
           caption={`Stored natively in MongoDB GridFS bucket \u2022 Receipt #${delivery.receiptNo}`}
         />

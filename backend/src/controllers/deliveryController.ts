@@ -543,6 +543,16 @@ export const streamSlip = async (req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Content-Length', file.length);
     }
     res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    
+    stream.on('error', (streamErr) => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: streamErr.message });
+      }
+    });
+
     return stream.pipe(res);
   } catch (error: any) {
     if (error.message?.includes('File not found')) {

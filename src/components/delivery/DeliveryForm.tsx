@@ -3,6 +3,7 @@ import { DeliveryRecord, NewDeliveryInput } from '../../types/delivery';
 import { deliveryService } from '../../services/deliveryService';
 import { Alert, Button, Badge } from '../ui';
 import { formatDisplayDate } from '../../utils/timeZone';
+import { cacheSlipImage } from '../../utils/slipImageCache';
 
 interface DeliveryFormProps {
   onCompleteDelivery?: (input: NewDeliveryInput) => Promise<DeliveryRecord>;
@@ -19,6 +20,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imageFileName, setImageFileName] = useState<string>('');
   const [completedRecord, setCompletedRecord] = useState<DeliveryRecord | null>(null);
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
@@ -39,12 +41,21 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       setImageFileName(file.name);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
+
+      // Read as base64 DataURL for persistent caching
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setImageDataUrl(dataUrl);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageDataUrl(null);
     setImageFileName('');
     setErrorMessage(null);
     setSubmissionState('idle');
@@ -71,17 +82,24 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     }, 700);
 
     try {
+      const effectivePreview = imageDataUrl || imagePreview;
       let record: DeliveryRecord;
       if (onCompleteDelivery) {
         record = await onCompleteDelivery({
           slipFile: imageFile,
-          slipPreviewUrl: imagePreview || undefined,
+          slipPreviewUrl: effectivePreview || undefined,
         });
       } else {
         record = await deliveryService.createDelivery({
           slipFile: imageFile,
-          slipPreviewUrl: imagePreview || undefined,
+          slipPreviewUrl: effectivePreview || undefined,
         });
+      }
+
+      if (effectivePreview) {
+        cacheSlipImage(record.receiptNo, effectivePreview);
+        if (record.slipFileId) cacheSlipImage(record.slipFileId, effectivePreview);
+        cacheSlipImage(record.id, effectivePreview);
       }
 
       if (onDeliveryCreated) {
@@ -95,6 +113,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       // Clear the file input for the next receipt
       setImageFile(null);
       setImagePreview(null);
+      setImageDataUrl(null);
       setImageFileName('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';

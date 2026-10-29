@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import mongoose from 'mongoose';
 import apiRoutes from './routes';
 import errorHandler from './middleware/errorHandler';
+import { streamSlip } from './controllers/deliveryController';
 
 export const createApp = (): Application => {
   const app = express();
@@ -13,6 +14,7 @@ export const createApp = (): Application => {
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   );
 
@@ -91,6 +93,11 @@ export const createApp = (): Application => {
   });
   app.get('/health', healthHandler);
   app.get('/api/health', healthHandler);
+
+  // Direct GridFS slip streaming routes (ensure immediate cross-origin streaming)
+  app.get('/api/delivery/slip/:fileId', streamSlip);
+  app.get('/delivery/slip/:fileId', streamSlip);
+  app.get('/slip/:fileId', streamSlip);
 
   // Mount API routers under both /api and root for robust URL matching in both standalone and serverless rewrite environments
   app.use('/api', apiRoutes);

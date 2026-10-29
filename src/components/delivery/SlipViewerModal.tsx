@@ -1,6 +1,9 @@
 import React from 'react';
 import { DeliveryRecord } from '../../types/delivery';
 import { formatDisplayDate } from '../../utils/timeZone';
+import { ImageContainer } from '../ui';
+import { getCachedSlipImage } from '../../utils/slipImageCache';
+import { getApiBaseUrl } from '../../services/api';
 
 interface SlipViewerModalProps {
   delivery: DeliveryRecord | null;
@@ -12,6 +15,30 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
   onClose,
 }) => {
   if (!delivery) return null;
+
+  const cachedSlip =
+    getCachedSlipImage(delivery.receiptNo) ||
+    getCachedSlipImage(delivery.slipFileId) ||
+    getCachedSlipImage(delivery.id);
+
+  const base = getApiBaseUrl();
+  const directGridFsUrl = delivery.slipFileId
+    ? `${base}/delivery/slip/${delivery.slipFileId}`
+    : undefined;
+  const relativeGridFsUrl = delivery.slipFileId
+    ? `/api/delivery/slip/${delivery.slipFileId}`
+    : undefined;
+
+  const primarySrc =
+    cachedSlip || delivery.slipImageUrl || directGridFsUrl || '/img/img-01.jpg';
+
+  const fallbacks = [
+    cachedSlip,
+    delivery.slipImageUrl,
+    directGridFsUrl,
+    relativeGridFsUrl,
+    '/img/img-01.jpg',
+  ];
 
   return (
     <div
@@ -77,7 +104,6 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
 
         {/* Modal Body */}
         <div className="tm-pad" style={{ padding: '24px' }}>
-
           {/* Slip Image Display */}
           <div className="text-center mb-3">
             <span
@@ -86,27 +112,12 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({
             >
               MongoDB GridFS Stored Delivery Proof Slip:
             </span>
-            <div
-              style={{
-                border: '1px solid #ddd',
-                padding: '8px',
-                background: '#fafafa',
-              }}
-            >
-              <img
-                src={delivery.slipImageUrl}
-                alt={`Proof slip for Receipt #${delivery.receiptNo}`}
-                className="img-fluid"
-                style={{
-                  maxHeight: '380px',
-                  objectFit: 'contain',
-                  width: '100%',
-                }}
-              />
-            </div>
-            <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.75rem', textAlign: 'left' }}>
-              <i className="fa fa-database mr-1 tm-color-primary"></i> Stored securely in MongoDB GridFS bucket (Receipt #{delivery.receiptNo})
-            </p>
+            <ImageContainer
+              src={primarySrc}
+              fallbacks={fallbacks}
+              alt={`Proof slip for Receipt #${delivery.receiptNo}`}
+              caption={`Stored securely in MongoDB GridFS bucket (Receipt #${delivery.receiptNo})`}
+            />
           </div>
 
           {/* Footer Action */}

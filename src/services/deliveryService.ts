@@ -8,8 +8,12 @@ import {
 } from '../types/delivery';
 import { INITIAL_DELIVERIES, INITIAL_DAILY_STATS, INITIAL_STORAGE_STATS } from '../utils/mockData';
 import { formatDisplayDate } from '../utils/timeZone';
+import { cacheSlipImage, getCachedSlipImage } from '../utils/slipImageCache';
 
 const resolveSlipUrl = (slipFileId?: string, fallbackUrl?: string): string => {
+  if (fallbackUrl && (fallbackUrl.startsWith('data:') || fallbackUrl.startsWith('blob:'))) {
+    return fallbackUrl;
+  }
   if (slipFileId) {
     const base = getApiBaseUrl();
     return `${base}/delivery/slip/${slipFileId}`;
@@ -47,9 +51,13 @@ export const deliveryService = {
       });
       const d = res.data.delivery || res.data;
       const fileId = d.slipFileId || res.data.slipFileId;
-      return {
+      const receiptNum = d.receiptNo || res.data.receiptNo || input.receiptNo || '';
+      const cached = getCachedSlipImage(receiptNum) || getCachedSlipImage(fileId);
+      const effectiveSlipUrl = input.slipPreviewUrl || cached || resolveSlipUrl(fileId, input.slipPreviewUrl);
+
+      const record: DeliveryRecord = {
         id: d.id || d._id || `del-${Date.now()}`,
-        receiptNo: d.receiptNo || res.data.receiptNo || '',
+        receiptNo: receiptNum,
         customer: d.recipientName || input.customer || 'Standard Recipient',
         recipientName: d.recipientName || input.customer || 'Standard Recipient',
         deliveryPerson: 'Bhushan Lokhande (You)',
@@ -62,8 +70,16 @@ export const deliveryService = {
         uploadedAt: d.uploadedAt || new Date().toISOString(),
         status: d.status || 'DELIVERED',
         slipFileId: fileId,
-        slipImageUrl: resolveSlipUrl(fileId, input.slipPreviewUrl),
+        slipImageUrl: effectiveSlipUrl,
       };
+
+      if (effectiveSlipUrl) {
+        cacheSlipImage(record.receiptNo, effectiveSlipUrl);
+        if (fileId) cacheSlipImage(fileId, effectiveSlipUrl);
+        cacheSlipImage(record.id, effectiveSlipUrl);
+      }
+
+      return record;
     } catch (err: any) {
       if (err?.response?.data) {
         const errorMsg = err.response.data.message || err.response.data.error;
@@ -87,23 +103,37 @@ export const deliveryService = {
     try {
       const res = await apiClient.get<{ totalDeliveries?: number; uploadedSlips?: number; deliveries?: any[] }>('/delivery/today');
       const rawDeliveries = res.data.deliveries || [];
-      const mappedDeliveries: DeliveryRecord[] = rawDeliveries.map((d: any) => ({
-        id: d.id || d._id?.toString() || `del-${Date.now()}`,
-        receiptNo: d.receiptNo,
-        customer: d.recipientName || 'Standard Recipient',
-        recipientName: d.recipientName || 'Standard Recipient',
-        deliveryPerson: 'Bhushan Lokhande (You)',
-        deliveryPersonId: d.deliveryPersonId,
-        deliveryDate: d.deliveryDate,
-        receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
-        receiptTime: d.receiptTime || '',
-        orderType: d.orderType || 'DELIVERY',
-        uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '',
-        uploadedAt: d.uploadedAt,
-        status: d.status || 'DELIVERED',
-        slipFileId: d.slipFileId?.toString(),
-        slipImageUrl: resolveSlipUrl(d.slipFileId?.toString(), d.slipImageUrl),
-      }));
+      const mappedDeliveries: DeliveryRecord[] = rawDeliveries.map((d: any) => {
+        const fileId = d.slipFileId?.toString();
+        const cached =
+          getCachedSlipImage(d.receiptNo) ||
+          getCachedSlipImage(fileId) ||
+          getCachedSlipImage(d.id || d._id);
+        const slipUrl = cached || resolveSlipUrl(fileId, d.slipImageUrl);
+
+        if (slipUrl && slipUrl !== '/img/img-01.jpg') {
+          if (d.receiptNo) cacheSlipImage(d.receiptNo, slipUrl);
+          if (fileId) cacheSlipImage(fileId, slipUrl);
+        }
+
+        return {
+          id: d.id || d._id?.toString() || `del-${Date.now()}`,
+          receiptNo: d.receiptNo,
+          customer: d.recipientName || 'Standard Recipient',
+          recipientName: d.recipientName || 'Standard Recipient',
+          deliveryPerson: 'Bhushan Lokhande (You)',
+          deliveryPersonId: d.deliveryPersonId,
+          deliveryDate: d.deliveryDate,
+          receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
+          receiptTime: d.receiptTime || '',
+          orderType: d.orderType || 'DELIVERY',
+          uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '',
+          uploadedAt: d.uploadedAt,
+          status: d.status || 'DELIVERED',
+          slipFileId: fileId,
+          slipImageUrl: slipUrl,
+        };
+      });
 
       return {
         totalDeliveries: res.data.totalDeliveries ?? mappedDeliveries.length,
@@ -128,23 +158,37 @@ export const deliveryService = {
   getAllDeliveries: async (params?: { date?: string; search?: string }): Promise<DeliveryRecord[]> => {
     try {
       const res = await apiClient.get<{ deliveries: any[] }>('/admin/deliveries', { params });
-      return res.data.deliveries.map((d) => ({
-        id: d.id,
-        receiptNo: d.receiptNo,
-        customer: d.recipientName || 'Walk-in Customer',
-        recipientName: d.recipientName,
-        deliveryPerson: d.deliveryPersonName || 'Bhushan Lokhande (DP-01)',
-        deliveryPersonId: d.deliveryPersonId,
-        deliveryDate: d.deliveryDate,
-        receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
-        receiptTime: d.receiptTime || '',
-        orderType: d.orderType || 'DELIVERY',
-        uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '12:00:00 IST',
-        uploadedAt: d.uploadedAt,
-        status: d.status || 'DELIVERED',
-        slipFileId: d.slipFileId,
-        slipImageUrl: resolveSlipUrl(d.slipFileId, d.slipImageUrl),
-      }));
+      return res.data.deliveries.map((d) => {
+        const fileId = d.slipFileId?.toString();
+        const cached =
+          getCachedSlipImage(d.receiptNo) ||
+          getCachedSlipImage(fileId) ||
+          getCachedSlipImage(d.id || d._id);
+        const slipUrl = cached || resolveSlipUrl(fileId, d.slipImageUrl);
+
+        if (slipUrl && slipUrl !== '/img/img-01.jpg') {
+          if (d.receiptNo) cacheSlipImage(d.receiptNo, slipUrl);
+          if (fileId) cacheSlipImage(fileId, slipUrl);
+        }
+
+        return {
+          id: d.id,
+          receiptNo: d.receiptNo,
+          customer: d.recipientName || 'Walk-in Customer',
+          recipientName: d.recipientName,
+          deliveryPerson: d.deliveryPersonName || 'Bhushan Lokhande (DP-01)',
+          deliveryPersonId: d.deliveryPersonId,
+          deliveryDate: d.deliveryDate,
+          receiptDate: formatDisplayDate(d.receiptDate || d.deliveryDate),
+          receiptTime: d.receiptTime || '',
+          orderType: d.orderType || 'DELIVERY',
+          uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : '12:00:00 IST',
+          uploadedAt: d.uploadedAt,
+          status: d.status || 'DELIVERED',
+          slipFileId: fileId,
+          slipImageUrl: slipUrl,
+        };
+      });
     } catch {
       return INITIAL_DELIVERIES;
     }
