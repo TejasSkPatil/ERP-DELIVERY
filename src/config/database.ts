@@ -43,13 +43,9 @@ const setupGracefulShutdown = (): void => {
  * Validates MONGODB_URI, masks credentials, logs connection status, and handles graceful shutdowns.
  */
 export const connectDatabase = async (): Promise<typeof mongoose> => {
-  const uri = process.env.MONGODB_URI;
-
-  if (!uri) {
-    const errorMsg = 'MONGODB_URI environment variable is not defined.';
-    console.error(`[MongoDB] Connection Failed: ${errorMsg}`);
-    throw new Error(errorMsg);
-  }
+  const DEFAULT_MONGODB_URI =
+    'mongodb+srv://tejasspatil2601_db_user:teju2601@cluster0.lrwwmfo.mongodb.net/?appName=Cluster0';
+  const uri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
 
   const sanitized = sanitizeMongoUri(uri);
   console.log(`[MongoDB] Connecting to MongoDB Atlas: ${sanitized}`);

@@ -4,36 +4,36 @@ import { z } from 'zod';
 // Load environment variables from .env file
 dotenv.config();
 
+const DEFAULT_MONGODB_URI =
+  'mongodb+srv://tejasspatil2601_db_user:teju2601@cluster0.lrwwmfo.mongodb.net/?appName=Cluster0';
+const DEFAULT_JWT_SECRET = 'my_super_secret_key_999!';
+
 // Define strict environment schema with validation
 const environmentSchema = z.object({
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  MONGODB_URI: z
-    .string({
-      message: 'MONGODB_URI is required. Please set MONGODB_URI in your .env file.',
-    })
-    .min(1, 'MONGODB_URI must not be empty.'),
+  MONGODB_URI: z.string().min(1).default(DEFAULT_MONGODB_URI),
   APP_TIMEZONE: z.string().default('Asia/Kolkata'),
   RETENTION_DAYS: z.coerce.number().int().positive().default(32),
   MAX_UPLOAD_SIZE: z.coerce.number().int().positive().default(5242880),
-  JWT_SECRET: z.string().optional(),
+  JWT_SECRET: z.string().default(DEFAULT_JWT_SECRET),
 });
 
 export type EnvironmentSchema = z.infer<typeof environmentSchema>;
 
 /**
  * Validates environment variables at application startup.
- * Halts execution immediately if critical required variables (such as MONGODB_URI) are missing.
+ * Uses sensible cluster defaults if hosted platform variables are unset.
  */
 export const validateEnv = (): EnvironmentSchema => {
   const result = environmentSchema.safeParse({
-    PORT: process.env.PORT,
-    NODE_ENV: process.env.NODE_ENV,
-    MONGODB_URI: process.env.MONGODB_URI,
-    APP_TIMEZONE: process.env.APP_TIMEZONE || process.env.TIMEZONE,
-    RETENTION_DAYS: process.env.RETENTION_DAYS,
-    MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
-    JWT_SECRET: process.env.JWT_SECRET,
+    PORT: process.env.PORT || '3001',
+    NODE_ENV: process.env.NODE_ENV || 'development',
+    MONGODB_URI: process.env.MONGODB_URI || DEFAULT_MONGODB_URI,
+    APP_TIMEZONE: process.env.APP_TIMEZONE || process.env.TIMEZONE || 'Asia/Kolkata',
+    RETENTION_DAYS: process.env.RETENTION_DAYS || 32,
+    MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE || 5242880,
+    JWT_SECRET: process.env.JWT_SECRET || DEFAULT_JWT_SECRET,
   });
 
   if (!result.success) {

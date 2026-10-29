@@ -81,8 +81,9 @@ export const createApp = (): Application => {
   app.get('/health', healthHandler);
   app.get('/api/health', healthHandler);
 
-  // Mount API routers under both /api and root for robust URL matching
+  // Mount API routers under both /api and root for robust URL matching in both standalone and serverless rewrite environments
   app.use('/api', apiRoutes);
+  app.use(apiRoutes);
   app.use('/', apiRoutes);
 
   // API 404 handler: ensure API requests never return HTML fallback

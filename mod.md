@@ -1593,3 +1593,69 @@ Done
 
 
 
+
+
+
+
+
+Viewed server.ts:1-7
+Viewed server.ts:1-60
+
+To run this project, open your terminal in the **project root directory** (`/Applications/Agents/ERP-DELIVERY`):
+
+### 1. Full-Stack Development (Recommended)
+Runs both the backend API and frontend React app together on a single port:
+```bash
+npm run dev
+```
+- **App URL**: [http://localhost:3001](http://localhost:3001)
+- **API Health**: [http://localhost:3001/api/health](http://localhost:3001/api/health)
+
+---
+
+### 2. Run Backend and Frontend in Separate Terminals (Optional)
+If you prefer running the Vite dev server and Express API independently:
+
+- **Terminal 1 (Backend API)**:
+  ```bash
+  npm run dev:backend
+  ```
+  *(Runs backend on port 3001)*
+
+- **Terminal 2 (Frontend React)**:
+  ```bash
+  npm run dev:frontend
+  ```
+  *(Runs Vite on [http://localhost:5173](http://localhost:5173))*
+
+---
+
+### 3. Production Build & Run
+To test the production build locally:
+```bash
+npm run build
+npm run start:fullstack
+```
+- Serves the compiled `dist/` bundle on [http://localhost:3001](http://localhost:3001).
+
+---
+
+### 4. Other Helpful Commands
+- **Run all unit & regression tests**:
+  ```bash
+  npm test
+  ```
+- **Typecheck frontend and backend**:
+  ```bash
+  npm run typecheck
+  ```
+- **Manual 32-day retention purge**:
+  ```bash
+  npm run retention:cleanup
+  ```
+
+> **Note**: Always run these commands from the root `/Applications/Agents/ERP-DELIVERY` folder where [`package.json`](file:///Applications/Agents/ERP-DELIVERY/package.json) is located.
+
+Viewed mod.md:1596-1596
+
+
