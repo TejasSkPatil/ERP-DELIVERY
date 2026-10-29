@@ -6,7 +6,7 @@ import createApp from './app';
 import { User } from './models/User';
 import { Activity } from './models/Activity';
 import env from './config/env';
-import { getApiBaseUrl } from '../../src/services/api';
+import { getApiBaseUrl, formatApiErrorMessage } from '../../src/services/api';
 
 vi.mock('./models/User');
 vi.mock('./models/Activity');
@@ -241,6 +241,11 @@ describe('Phase 5 — Fullstack API Regression Tests', () => {
     vi.stubEnv('VITE_API_URL', 'https://custom-backend.production.com/api');
     expect(getApiBaseUrl()).toBe('https://custom-backend.production.com/api');
 
+    // VITE_BACKEND_URL fallback
+    vi.unstubAllEnvs();
+    vi.stubEnv('VITE_BACKEND_URL', 'https://render-backend.onrender.com');
+    expect(getApiBaseUrl()).toBe('https://render-backend.onrender.com/api');
+
     // Reset and verify fallback
     vi.unstubAllEnvs();
     expect(getApiBaseUrl()).toBe('/api');
@@ -259,5 +264,24 @@ describe('Phase 5 — Fullstack API Regression Tests', () => {
       .send({ invalid: true });
     expect(loginRes.headers['content-type']).toMatch(/application\/json/);
     expect(loginRes.text.startsWith('<!DOCTYPE html>')).toBe(false);
+  });
+
+  // 12. Distinguishes error categories (Timeout, 502/503, Missing Config, Validation)
+  it('12. Distinguishes backend errors into actionable messages', () => {
+    // Timeout error
+    const timeoutErr = { code: 'ECONNABORTED', message: 'timeout of 60000ms exceeded' };
+    expect(formatApiErrorMessage(timeoutErr)).toContain('Backend request timed out');
+
+    // Render gateway 502 / 503
+    const gatewayErr = { response: { status: 502 } };
+    expect(formatApiErrorMessage(gatewayErr)).toContain('temporarily unavailable (HTTP 502)');
+
+    // Missing API URL
+    const missingUrlErr = { code: 'ERR_MISSING_API_URL', message: 'VITE_API_URL not set' };
+    expect(formatApiErrorMessage(missingUrlErr)).toBe('VITE_API_URL not set');
+
+    // Server application error
+    const appErr = { response: { data: { message: "'COLLECTION' slips :Invalid slip" } } };
+    expect(formatApiErrorMessage(appErr)).toBe("'COLLECTION' slips :Invalid slip");
   });
 });

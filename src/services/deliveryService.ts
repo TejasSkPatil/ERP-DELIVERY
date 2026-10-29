@@ -1,4 +1,4 @@
-import apiClient from './api';
+import apiClient, { getApiBaseUrl, formatApiErrorMessage } from './api';
 import {
   DeliveryRecord,
   DailyStat,
@@ -8,6 +8,19 @@ import {
 } from '../types/delivery';
 import { INITIAL_DELIVERIES, INITIAL_DAILY_STATS, INITIAL_STORAGE_STATS } from '../utils/mockData';
 import { formatDisplayDate } from '../utils/timeZone';
+
+const resolveSlipUrl = (slipFileId?: string, fallbackUrl?: string): string => {
+  if (slipFileId) {
+    const base = getApiBaseUrl();
+    return `${base}/delivery/slip/${slipFileId}`;
+  }
+  if (fallbackUrl && fallbackUrl.startsWith('/api/delivery/slip/')) {
+    const base = getApiBaseUrl();
+    const id = fallbackUrl.replace('/api/delivery/slip/', '');
+    return `${base}/delivery/slip/${id}`;
+  }
+  return fallbackUrl || '/img/img-01.jpg';
+};
 
 export const deliveryService = {
   // Submit new delivery proof (Delivery Person)
@@ -33,6 +46,7 @@ export const deliveryService = {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const d = res.data.delivery || res.data;
+      const fileId = d.slipFileId || res.data.slipFileId;
       return {
         id: d.id || d._id || `del-${Date.now()}`,
         receiptNo: d.receiptNo || res.data.receiptNo || '',
@@ -47,23 +61,24 @@ export const deliveryService = {
         uploadedTime: d.uploadedAt ? new Date(d.uploadedAt).toLocaleTimeString('en-GB') : new Date().toLocaleTimeString('en-GB'),
         uploadedAt: d.uploadedAt || new Date().toISOString(),
         status: d.status || 'DELIVERED',
-        slipFileId: d.slipFileId || res.data.slipFileId,
-        slipImageUrl: (d.slipFileId || res.data.slipFileId) ? `/api/delivery/slip/${d.slipFileId || res.data.slipFileId}` : (input.slipPreviewUrl || '/img/img-01.jpg'),
+        slipFileId: fileId,
+        slipImageUrl: resolveSlipUrl(fileId, input.slipPreviewUrl),
       };
     } catch (err: any) {
       if (err?.response?.data) {
         const errorMsg = err.response.data.message || err.response.data.error;
-        if (errorMsg) {
-          const apiErr: any = new Error(errorMsg);
+        if (typeof errorMsg === 'string' && errorMsg.trim()) {
+          const apiErr: any = new Error(errorMsg.trim());
           apiErr.code = err.response.data.code;
           apiErr.ocr = err.response.data.ocr;
           throw apiErr;
         }
       }
-      if (err?.message && !err?.response) {
-        throw new Error('Backend server is not reachable. Please start the backend server with `npm run dev` or `npm run dev:backend`.');
-      }
-      throw err;
+      const formatted = formatApiErrorMessage(err);
+      const apiErr: any = new Error(formatted);
+      apiErr.code = err?.code || err?.response?.data?.code;
+      apiErr.ocr = err?.response?.data?.ocr;
+      throw apiErr;
     }
   },
 
@@ -87,7 +102,7 @@ export const deliveryService = {
         uploadedAt: d.uploadedAt,
         status: d.status || 'DELIVERED',
         slipFileId: d.slipFileId?.toString(),
-        slipImageUrl: d.slipFileId ? `/api/delivery/slip/${d.slipFileId}` : (d.slipImageUrl || '/img/img-01.jpg'),
+        slipImageUrl: resolveSlipUrl(d.slipFileId?.toString(), d.slipImageUrl),
       }));
 
       return {
@@ -128,7 +143,7 @@ export const deliveryService = {
         uploadedAt: d.uploadedAt,
         status: d.status || 'DELIVERED',
         slipFileId: d.slipFileId,
-        slipImageUrl: d.slipImageUrl || (d.slipFileId ? `/api/delivery/slip/${d.slipFileId}` : '/img/img-01.jpg'),
+        slipImageUrl: resolveSlipUrl(d.slipFileId, d.slipImageUrl),
       }));
     } catch {
       return INITIAL_DELIVERIES;

@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import mongoose from 'mongoose';
 import apiRoutes from './routes';
 import errorHandler from './middleware/errorHandler';
 
@@ -26,31 +27,35 @@ export const createApp = (): Application => {
   ];
 
   if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/+$/, ''));
+    allowedOrigins.push(process.env.FRONTEND_URL.trim().replace(/\/+$/, ''));
   }
   if (process.env.CORS_ORIGIN) {
-    allowedOrigins.push(process.env.CORS_ORIGIN.replace(/\/+$/, ''));
+    allowedOrigins.push(process.env.CORS_ORIGIN.trim().replace(/\/+$/, ''));
   }
 
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
-        if (!origin) return callback(null, true);
-        if (
-          allowedOrigins.includes(origin) ||
-          origin.endsWith('.vercel.app') ||
-          process.env.NODE_ENV !== 'production'
-        ) {
-          return callback(null, true);
-        }
+  const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.trim().replace(/\/+$/, '');
+      if (
+        allowedOrigins.includes(cleanOrigin) ||
+        cleanOrigin.endsWith('.vercel.app') ||
+        process.env.NODE_ENV !== 'production'
+      ) {
         return callback(null, true);
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    })
-  );
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours preflight cache
+  };
+
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
 
   // Body parsers
   app.use(express.json({ limit: '15mb' }));
@@ -58,18 +63,24 @@ export const createApp = (): Application => {
 
   // Direct health check routes
   const healthHandler = (_req: Request, res: Response) => {
+    const isDbConnected = mongoose.connection.readyState === 1;
     return res.status(200).json({
       success: true,
+      service: 'ERP-DELIVERY Backend API',
+      status: 'healthy',
       message: 'ERP Delivery API running',
+      database: isDbConnected ? 'connected' : 'disconnected',
       environment: process.env.NODE_ENV || 'development',
       timestamp: new Date().toISOString(),
     });
   };
   app.get('/', (_req: Request, res: Response) => {
+    const isDbConnected = mongoose.connection.readyState === 1;
     return res.status(200).json({
       success: true,
       service: 'ERP-DELIVERY Backend API',
       status: 'healthy',
+      database: isDbConnected ? 'connected' : 'disconnected',
       environment: process.env.NODE_ENV || 'development',
       timestamp: new Date().toISOString(),
       endpoints: {

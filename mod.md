@@ -1659,3 +1659,50 @@ npm run start:fullstack
 Viewed mod.md:1596-1596
 
 
+
+
+
+# Fix ERP-DELIVERY Production Backend Connectivity
+
+My frontend is hosted on Vercel at https://erp-delivery-five.vercel.app/ and my Node.js + Express backend is hosted on Render.
+
+The hosted frontend displays:
+
+"Scan Failed: Backend server is not reachable. Please start the backend server with npm run dev or npm run dev:backend."
+
+The application works locally. Diagnose and fix the production configuration without breaking the existing application.
+
+### Phase 1: Inspect the code
+- Find the source of this exact error message.
+- Inspect the API client, Axios configuration, OCR scan flow, backend health checks, environment variables, and Vite configuration.
+- Find any hardcoded localhost URLs or logic that incorrectly tells production users to start a local server.
+- Identify the actual environment variable names already used by the project.
+
+### Phase 2: Configure the frontend
+- Configure production API requests to use the deployed Render backend URL.
+- Read the API URL from the correct Vite environment variable.
+- Keep local development working with the existing local backend configuration.
+- Do not create a second API client or hardcode a fabricated Render URL.
+- Provide a clear configuration error when the production API URL is missing.
+
+### Phase 3: Configure the backend
+- Verify Express listens on `process.env.PORT` and binds to `0.0.0.0`.
+- Inspect the existing health endpoint and ensure it can verify backend readiness.
+- Configure CORS to permit the actual Vercel production origin.
+- Preserve JWT authentication, upload validation, MongoDB Atlas connectivity, GridFS storage, and existing API routes.
+
+### Phase 4: Verify production connectivity
+- Check the OCR scan request from the frontend through the API client to the Render backend.
+- Distinguish backend unavailability, incorrect API URL, CORS errors, timeout errors, and HTTP validation failures.
+- Do not interpret every HTTP error as an unreachable backend.
+- Do not change receipt acceptance rules to hide connectivity errors.
+
+### Phase 5: Report and deploy
+- List every file changed.
+- Provide the exact Vercel environment variable name and required value format.
+- Explain any required Render environment or CORS changes.
+- Identify the correct build and start commands from the existing package.json.
+- Run available TypeScript checks and builds.
+- Provide the deployment and verification steps.
+
+Do not claim the hosted application is fixed until the deployed frontend successfully reaches the deployed backend. Never expose credentials or commit `.env` files.
