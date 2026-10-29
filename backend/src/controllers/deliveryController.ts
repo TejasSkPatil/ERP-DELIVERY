@@ -136,6 +136,27 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       );
     }
 
+    // 4c. Strict Order Type Rejection: Unconditionally enforce that orderType must be strictly 'DELIVERY'
+    // If it is COLLECTION (in that space or on slip), reject immediately with 'COLLECTION' slips :Invalid slip
+    // If it is anything else, reject immediately as only this fixed DELIVERY format is accepted
+    const isCollectionSlip =
+      extractedDetails.orderType === 'COLLECTION' ||
+      extractedDetails.validationReason === 'COLLECTION_REJECTED' ||
+      ocrResult.text.split(/\r?\n/).some((l) =>
+        /^(?:order\s*type\s*[:\-]?\s*)?COLLECTION$/i.test(l.trim()) ||
+        (!/(?:charges|deliver\s*to|collection\s*time|collection\s*date)/i.test(l) &&
+          /\b(?:COLLECTION|COLLECTED\s*BY)\b/i.test(l.trim()))
+      );
+
+    if (isCollectionSlip) {
+      return res.status(422).json({
+        success: false,
+        code: 'COLLECTION_REJECTED',
+        message: "'COLLECTION' slips :Invalid slip",
+        ocr: extractedDetails,
+      });
+    }
+
     if (clientReceiptNo) {
       // Manual input was provided: verify matching with OCR
       receiptDate = extractedDetails.printedDeliveryDate || '';
@@ -169,16 +190,6 @@ export const createDeliveryProof = async (req: AuthenticatedRequest, res: Respon
       }
     } else {
       // Automatic OCR Mode (No manual receiptNo provided in request)
-      // Check for explicit template rejection (e.g. COLLECTION slip)
-      if (extractedDetails.orderType === 'COLLECTION' || extractedDetails.validationReason === 'COLLECTION_REJECTED') {
-        return res.status(422).json({
-          success: false,
-          code: 'COLLECTION_REJECTED',
-          message: "'COLLECTION' slips :Invalid slip",
-          ocr: extractedDetails,
-        });
-      }
-
       if (extractedDetails.error) {
         return res.status(422).json({
           success: false,

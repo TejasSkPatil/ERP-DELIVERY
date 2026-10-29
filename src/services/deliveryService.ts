@@ -60,22 +60,7 @@ export const deliveryService = {
         }
       }
       if (err?.message && !err?.response) {
-        // If server connection failed completely, allow fallback in demo mode
-        const fallbackRecord: DeliveryRecord = {
-          id: `del-${Date.now()}`,
-          receiptNo: input.receiptNo ? input.receiptNo.replace(/^#/, '') : `${Math.floor(1000 + Math.random() * 9000)}`,
-          deliveryPerson: 'Bhushan Lokhande (You)',
-          customer: input.customer || 'Standard Recipient',
-          recipientName: input.customer || 'Standard Recipient',
-          deliveryDate: '08 Oct 2026',
-          receiptDate: '08 Oct 2026',
-          receiptTime: '12:00',
-          orderType: 'DELIVERY',
-          uploadedTime: '12:00:00 IST',
-          status: 'Completed',
-          slipImageUrl: input.slipPreviewUrl || '/img/img-01.jpg',
-        };
-        return fallbackRecord;
+        throw new Error('Backend server is not reachable. Please start the backend server with `npm run dev` or `npm run dev:backend`.');
       }
       throw err;
     }
